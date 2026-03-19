@@ -1,0 +1,149 @@
+package yum_test
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/yum-bundle/yum-bundle/internal/testutil"
+	"github.com/yum-bundle/yum-bundle/internal/yum"
+)
+
+func dnfManager(t *testing.T) (*yum.YumManager, *testutil.MockExecutor) {
+	t.Helper()
+	mock := testutil.NewMockExecutor()
+	m := testManager(t)
+	m.Executor = mock
+	return m, mock
+}
+
+func TestIsPackageInstalled_Installed(t *testing.T) {
+	m, mock := dnfManager(t)
+	// rpm -q --quiet exits 0 → installed
+	_ = mock
+	installed, err := m.IsPackageInstalled("vim")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Mock returns nil error by default for any command
+	if !installed {
+		t.Error("expected installed=true")
+	}
+}
+
+func TestIsPackageInstalled_NotInstalled(t *testing.T) {
+	m, mock := dnfManager(t)
+	mock.SetError(errors.New("exit status 1"), "rpm", "-q", "--quiet", "nosuchpkg")
+	installed, err := m.IsPackageInstalled("nosuchpkg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if installed {
+		t.Error("expected installed=false")
+	}
+}
+
+func TestInstallPackage_CallsDNF(t *testing.T) {
+	m, mock := dnfManager(t)
+	if err := m.InstallPackage("vim"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "install", "-y", "vim")
+}
+
+func TestInstallPackage_VersionPinned(t *testing.T) {
+	m, mock := dnfManager(t)
+	if err := m.InstallPackage("nodejs = 18.0.0"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "install", "-y", "nodejs = 18.0.0")
+}
+
+func TestInstallPackage_EmptyName(t *testing.T) {
+	m, _ := dnfManager(t)
+	if err := m.InstallPackage(""); err == nil {
+		t.Error("expected error for empty package name")
+	}
+}
+
+func TestInstallPackage_InvalidName(t *testing.T) {
+	m, _ := dnfManager(t)
+	if err := m.InstallPackage("../etc/passwd"); err == nil {
+		t.Error("expected error for invalid package name")
+	}
+}
+
+func TestRemovePackage(t *testing.T) {
+	m, mock := dnfManager(t)
+	if err := m.RemovePackage("vim"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "remove", "-y", "vim")
+}
+
+func TestAutoRemove(t *testing.T) {
+	m, mock := dnfManager(t)
+	if err := m.AutoRemove(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "autoremove", "-y")
+}
+
+func TestMakecacheOrUpdate(t *testing.T) {
+	m, mock := dnfManager(t)
+	if err := m.MakecacheOrUpdate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "makecache")
+}
+
+func TestGetInstalledVersion(t *testing.T) {
+	m, mock := dnfManager(t)
+	mock.SetOutput([]byte("8.2.2-1.fc39"), "rpm", "-q", "--queryformat", "%{VERSION}-%{RELEASE}", "vim")
+	ver, err := m.GetInstalledVersion("vim")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ver != "8.2.2-1.fc39" {
+		t.Errorf("expected 8.2.2-1.fc39, got %q", ver)
+	}
+}
+
+func TestGetInstalledVersion_NotInstalled(t *testing.T) {
+	m, mock := dnfManager(t)
+	mock.SetError(errors.New("exit status 1"), "rpm", "-q", "--queryformat", "%{VERSION}-%{RELEASE}", "nosuchpkg")
+	ver, err := m.GetInstalledVersion("nosuchpkg")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ver != "" {
+		t.Errorf("expected empty version, got %q", ver)
+	}
+}
+
+func TestGetAvailableVersion(t *testing.T) {
+	m, mock := dnfManager(t)
+	mock.SetOutput([]byte(`
+Name         : vim
+Version      : 9.0.0
+Release      : 1.fc39
+`), "dnf", "info", "--available", "vim")
+	ver, err := m.GetAvailableVersion("vim")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ver != "9.0.0-1.fc39" {
+		t.Errorf("expected 9.0.0-1.fc39, got %q", ver)
+	}
+}
+
+func TestGetAllInstalledPackages_DNF(t *testing.T) {
+	m, mock := dnfManager(t)
+	mock.SetOutput([]byte("vim\ncurl\ngit\n"), "dnf", "history", "userinstalled")
+	pkgs, err := m.GetAllInstalledPackages()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(pkgs) != 3 {
+		t.Errorf("expected 3 packages, got %d: %v", len(pkgs), pkgs)
+	}
+}
