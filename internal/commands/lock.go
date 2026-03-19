@@ -1,0 +1,122 @@
+package commands
+
+import (
+	"bufio"
+	"bytes"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/yum-bundle/yum-bundle/internal/yumfile"
+)
+
+// pkgVer holds a package name and its installed version for lock file entries.
+type pkgVer struct {
+	pkg string
+	ver string
+}
+
+var lockCmd = &cobra.Command{
+	Use:   "lock",
+	Short: "Generate Yumfile.lock from current installed versions of Yumfile packages",
+	Long: `Lock reads the Yumfile, queries installed versions of each package,
+and writes Yumfile.lock for reproducible installs. Does not require root.
+Use 'yum-bundle install --locked' to install only locked versions.`,
+	RunE: runLock,
+}
+
+func init() {
+	rootCmd.AddCommand(lockCmd)
+}
+
+func getLockFilePath() string {
+	dir := filepath.Dir(yumfilePath)
+	return filepath.Join(dir, "Yumfile.lock")
+}
+
+func runLock(cmd *cobra.Command, args []string) error {
+	entries, err := yumfile.Parse(yumfilePath)
+	if err != nil {
+		return fmt.Errorf("failed to parse Yumfile: %w", err)
+	}
+
+	var packages []string
+	for _, e := range entries {
+		if e.Type == yumfile.EntryTypeYum {
+			packages = append(packages, e.Value)
+		}
+	}
+	if len(packages) == 0 {
+		return fmt.Errorf("no packages in Yumfile")
+	}
+
+	locked, skipped := resolveInstalledVersions(packages)
+	for _, name := range skipped {
+		fmt.Printf("Warning: %s not installed, skipping in lock file\n", name)
+	}
+	if len(locked) == 0 {
+		return fmt.Errorf("no installed packages from Yumfile to lock")
+	}
+
+	if err := writeLockFileEntries(locked); err != nil {
+		return fmt.Errorf("failed to write lock file: %w", err)
+	}
+	fmt.Printf("Wrote %d package versions to %s\n", len(locked), getLockFilePath())
+	return nil
+}
+
+// resolveInstalledVersions queries the installed version of each package.
+func resolveInstalledVersions(packages []string) (locked []pkgVer, skipped []string) {
+	for _, pkg := range packages {
+		pkgName := yumfile.ExtractPkgName(pkg)
+		ver, err := mgr.GetInstalledVersion(pkgName)
+		if err != nil || ver == "" {
+			skipped = append(skipped, pkgName)
+			continue
+		}
+		locked = append(locked, pkgVer{pkg: pkgName, ver: ver})
+	}
+	sort.Slice(locked, func(i, j int) bool { return locked[i].pkg < locked[j].pkg })
+	return locked, skipped
+}
+
+// writeLockFileEntries writes the given package versions to Yumfile.lock.
+func writeLockFileEntries(entries []pkgVer) error {
+	path := getLockFilePath()
+	var lines []string
+	for _, pv := range entries {
+		lines = append(lines, pv.pkg+"="+pv.ver)
+	}
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0644)
+}
+
+// ReadLockFile returns package specs (pkg=version) from the lock file.
+func ReadLockFile() ([]string, error) {
+	path := getLockFilePath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("lock file not found: %s (run 'yum-bundle lock' first)", path)
+		}
+		return nil, err
+	}
+	var specs []string
+	sc := bufio.NewScanner(bytes.NewReader(data))
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if pkg, ver, ok := strings.Cut(line, "="); ok && pkg != "" && ver != "" {
+			specs = append(specs, line)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("reading lock file %s: %w", path, err)
+	}
+	return specs, nil
+}
