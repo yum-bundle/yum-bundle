@@ -1,0 +1,89 @@
+name: Update RPM Repository
+
+on:
+  release:
+    types: [published]
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update-rpm-repo:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve release tag
+        id: tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${{ github.event.release.tag_name }}" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/latest" | \
+              jq -r '.tag_name // empty')
+          fi
+          if [ -z "$TAG" ]; then
+            echo "No release found, skipping"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install createrepo
+        if: steps.tag.outputs.skip != 'true'
+        run: sudo apt-get update && sudo apt-get install -y createrepo-c
+
+      - name: Update RPM repository
+        if: steps.tag.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${TAG#v}"
+          mkdir -p docs/repo/packages
+
+          # Download the new RPM packages
+          for arch in x86_64 aarch64 armv7hl; do
+            FILENAME="yum-bundle_${VERSION}_linux_${arch}.rpm"
+            URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${FILENAME}"
+            echo "Downloading ${FILENAME}..."
+            curl -fsSL -o "docs/repo/packages/${FILENAME}" "${URL}" || \
+              echo "Warning: ${FILENAME} not found, skipping"
+          done
+
+          # Regenerate repository metadata
+          cd docs/repo
+          createrepo_c --update .
+
+          echo "RPM repository updated for version ${VERSION}"
+          ls -lh packages/*.rpm 2>/dev/null || echo "No RPM packages found"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push
+        if: steps.tag.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          git add docs/repo/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update RPM repository to ${TAG}"
+            git push
+          fi

@@ -1,0 +1,274 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'examples/**'
+      - 'docs/**'
+      - '**.md'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check_release.outputs.version }}
+      tag: ${{ steps.check_release.outputs.tag }}
+      skip: ${{ steps.check_release.outputs.skip }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Read VERSION file
+        id: version
+        run: |
+          MAJOR_MINOR=$(cat VERSION | tr -d '[:space:]')
+          echo "major_minor=${MAJOR_MINOR}" >> $GITHUB_OUTPUT
+          echo "Read version: ${MAJOR_MINOR}"
+
+      - name: Calculate next patch version
+        id: next_version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          MAJOR_MINOR="${{ steps.version.outputs.major_minor }}"
+          echo "Looking for existing releases matching ${MAJOR_MINOR}.*"
+
+          RELEASES=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" | \
+            jq -r ".[].tag_name" | grep "^v${MAJOR_MINOR}\." || true)
+
+          if [ -z "$RELEASES" ]; then
+            PATCH=0
+          else
+            MAX_PATCH=$(echo "$RELEASES" | sed "s/^v${MAJOR_MINOR}\.//" | sort -n | tail -1)
+            PATCH=$((MAX_PATCH + 1))
+          fi
+
+          VERSION="${MAJOR_MINOR}.${PATCH}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "Calculated next version: ${VERSION}"
+
+      - name: Check if release already exists
+        id: check_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.next_version.outputs.tag }}"
+          if curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" | \
+            grep -q '"id"'; then
+            echo "Release ${TAG} already exists, skipping"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+          echo "version=${{ steps.next_version.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "tag=${{ steps.next_version.outputs.tag }}" >> $GITHUB_OUTPUT
+
+  build:
+    needs: release
+    if: needs.release.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goarch: amd64
+            rpmarch: x86_64
+          - goarch: arm64
+            rpmarch: aarch64
+          - goarch: arm
+            rpmarch: armv7hl
+            goarm: 7
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install nfpm
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+      - name: Build and package for architecture
+        env:
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          VERSION: ${{ needs.release.outputs.version }}
+          NFPM_VERSION: ${{ needs.release.outputs.version }}
+          NFPM_ARCH: ${{ matrix.rpmarch }}
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          mkdir -p build dist artifacts
+
+          CGO_ENABLED=0 GOOS=linux GOARCH=${GOARCH} GOARM=${GOARM} \
+            go build \
+              -ldflags="-s -w \
+                -X github.com/yum-bundle/yum-bundle/internal/commands.version=${VERSION} \
+                -X github.com/yum-bundle/yum-bundle/internal/commands.commit=${COMMIT}" \
+              -o build/yum-bundle ./cmd/yum-bundle
+
+          sed -e "s|{{ .Version }}|${VERSION}|g" \
+              -e "s|{{ .Arch }}|${NFPM_ARCH}|g" \
+              .nfpm.yaml > .nfpm-${NFPM_ARCH}.yaml
+
+          nfpm package \
+            --config .nfpm-${NFPM_ARCH}.yaml \
+            --target dist/ \
+            --packager rpm
+
+          rm .nfpm-${NFPM_ARCH}.yaml
+
+          ACTUAL_PACKAGE=$(find dist -maxdepth 1 -name "*.rpm" -type f | head -1)
+          if [ -z "$ACTUAL_PACKAGE" ]; then
+            echo "Error: No .rpm package found in dist/"
+            exit 1
+          fi
+
+          EXPECTED_NAME="yum-bundle_${VERSION}_linux_${NFPM_ARCH}.rpm"
+          if [ "$(basename "$ACTUAL_PACKAGE")" != "$EXPECTED_NAME" ]; then
+            mv "$ACTUAL_PACKAGE" "dist/${EXPECTED_NAME}"
+          fi
+
+          echo "Created: dist/${EXPECTED_NAME}"
+
+          BINARY_NAME="yum-bundle_${VERSION}_linux_${NFPM_ARCH}"
+          cp "build/yum-bundle" "build/${BINARY_NAME}"
+          chmod +x "build/${BINARY_NAME}"
+
+          mkdir -p artifacts
+          cp "dist/${EXPECTED_NAME}" artifacts/
+          cp "build/${BINARY_NAME}" artifacts/
+
+      - name: Upload packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-packages-${{ matrix.rpmarch }}
+          path: artifacts/*.rpm
+          retention-days: 1
+
+      - name: Upload binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.rpmarch }}
+          path: artifacts/yum-bundle_*_linux_${{ matrix.rpmarch }}
+          retention-days: 1
+
+  create-release:
+    needs: [release, build]
+    if: needs.release.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: rpm-packages-*
+          path: packages
+          merge-multiple: true
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binaries-*
+          path: binaries
+          merge-multiple: true
+
+      - name: Verify all packages downloaded
+        run: |
+          PACKAGE_COUNT=$(find packages -name "*.rpm" -type f | wc -l)
+          echo "Found ${PACKAGE_COUNT} packages"
+          if [ "$PACKAGE_COUNT" -ne 3 ]; then
+            echo "Error: Expected 3 packages (x86_64, aarch64, armv7hl), found ${PACKAGE_COUNT}"
+            ls -la packages/
+            exit 1
+          fi
+          echo "All packages present:"
+          ls -lh packages/*.rpm
+
+      - name: Generate checksums
+        run: |
+          cd packages
+          sha256sum *.rpm > ../SHA256SUMS
+          cd ../binaries
+          sha256sum yum-bundle_* >> ../SHA256SUMS
+          cd ..
+          cat SHA256SUMS
+
+      - name: Generate release notes
+        run: |
+          TAG="${{ needs.release.outputs.tag }}"
+          VERSION="${{ needs.release.outputs.version }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          echo "# Release ${VERSION}" > release-notes.md
+          echo "" >> release-notes.md
+
+          if [ -n "$PREV_TAG" ]; then
+            echo "## Changes since ${PREV_TAG}" >> release-notes.md
+            echo "" >> release-notes.md
+            git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%an)" --no-merges >> release-notes.md
+          else
+            echo "Initial release of yum-bundle" >> release-notes.md
+          fi
+
+          echo "" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "## Installation" >> release-notes.md
+          echo "" >> release-notes.md
+          echo '```bash' >> release-notes.md
+          echo 'curl -fsSL https://raw.githubusercontent.com/yum-bundle/yum-bundle/main/install.sh | sudo bash' >> release-notes.md
+          echo '```' >> release-notes.md
+          echo "" >> release-notes.md
+          echo "## Packages" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "RPM packages (.rpm) are available for x86_64, aarch64, and armv7hl." >> release-notes.md
+
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.release.outputs.tag }}"
+          VERSION="${{ needs.release.outputs.version }}"
+
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists (race condition)"
+            exit 0
+          fi
+
+          gh release create "${TAG}" \
+            --title "yum-bundle ${VERSION}" \
+            --notes-file release-notes.md \
+            packages/*.rpm \
+            binaries/yum-bundle_* \
+            SHA256SUMS \
+            --repo "${GITHUB_REPOSITORY}"
+
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag: ${TAG}" >> $GITHUB_STEP_SUMMARY
+          echo "- Release URL: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" >> $GITHUB_STEP_SUMMARY
