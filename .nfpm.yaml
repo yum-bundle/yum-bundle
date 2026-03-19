@@ -1,0 +1,28 @@
+name: yum-bundle
+arch: "{{ .Arch }}"
+platform: linux
+version: "{{ .Version }}"
+section: utils
+priority: optional
+maintainer: maintainers@yum-bundle.org
+description: |
+  A declarative package manager for yum/dnf, inspired by Homebrew's brew bundle.
+  yum-bundle provides a simple, declarative, and shareable way to manage
+  yum/dnf packages and repositories on RPM-based systems.
+homepage: https://yum-bundle.org
+license: Apache-2.0
+vendor: yum-bundle
+contents:
+  - src: build/yum-bundle
+    dst: /usr/bin/yum-bundle
+    type: file
+    file_info:
+      mode: 0755
+overrides:
+  rpm:
+    depends:
+      - dnf
+    recommends:
+      - curl
+    suggests:
+      - git
