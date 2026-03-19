@@ -1,0 +1,36 @@
+title: yum-bundle
+description: A declarative package manager for yum/dnf, inspired by Homebrew's brew bundle
+url: https://yum-bundle.org
+baseurl: ""
+
+# Theme
+remote_theme: just-the-docs/just-the-docs
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-remote-theme
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - .gitignore
+
+# Navigation
+nav_order: 1
+aux_links:
+  "GitHub Repository":
+    - https://github.com/yum-bundle/yum-bundle
+
+# Footer content
+footer_content: "Released under the Apache 2.0 License"
+
+# Search
+search_enabled: true
