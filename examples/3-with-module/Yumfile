@@ -1,0 +1,13 @@
+# Example: Use DNF module streams (RHEL 8+/Fedora)
+# Enables a specific Node.js version via DNF modularity
+
+# Enable the Node.js 18 module stream
+module nodejs:18
+
+# Install Node.js and npm from the enabled stream
+yum nodejs
+yum npm
+
+# Other development tools
+yum git
+yum vim

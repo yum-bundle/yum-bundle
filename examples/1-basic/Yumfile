@@ -1,0 +1,6 @@
+# Basic example: install common development tools
+yum vim
+yum curl
+yum git
+yum htop
+yum jq

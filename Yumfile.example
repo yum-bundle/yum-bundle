@@ -1,0 +1,40 @@
+# Example Yumfile
+# This file demonstrates the yum-bundle syntax
+
+# Core development tools
+yum vim
+yum curl
+yum git
+yum htop
+yum jq
+yum wget
+
+# Network tools
+yum net-tools
+yum openssh-clients
+
+# Enable EPEL for extra packages (skip on Fedora)
+epel
+
+# COPR repositories (Fedora community repos, like Ubuntu PPAs)
+# copr atim/lazygit
+# copr carlwgeorge/ripgrep
+
+# Custom repository with GPG key
+# key https://packages.example.com/gpg.key
+# baseurl https://packages.example.com/el9/x86_64/
+
+# Download a .repo file from a URL
+# repo https://packages.microsoft.com/config/rhel/9/prod.repo
+# yum azure-cli
+
+# DNF module streams (RHEL 8+/Fedora)
+# module nodejs:18
+# yum nodejs
+# yum npm
+
+# Install an RPM directly from a URL (e.g. repo-setup packages)
+# rpm https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+
+# Version-pinned package
+# yum curl = 7.76.1

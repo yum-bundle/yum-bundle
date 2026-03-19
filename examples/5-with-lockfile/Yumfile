@@ -1,0 +1,9 @@
+# Example: Version-pinned packages with a lockfile
+# After running 'yum-bundle install', generate a lockfile:
+#   yum-bundle lock
+# Then install with locked versions:
+#   sudo yum-bundle install --locked
+
+yum vim
+yum curl
+yum git

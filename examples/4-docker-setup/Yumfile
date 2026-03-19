@@ -1,0 +1,14 @@
+# Example: Install Docker CE on RHEL/CentOS/Rocky Linux
+# Uses the official Docker repository
+
+# Import Docker's GPG key
+key https://download.docker.com/linux/rhel/gpg
+
+# Add the Docker repository
+repo https://download.docker.com/linux/rhel/docker-ce.repo
+
+# Install Docker
+yum docker-ce
+yum docker-ce-cli
+yum containerd.io
+yum docker-compose-plugin

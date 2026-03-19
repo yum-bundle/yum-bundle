@@ -1,0 +1,16 @@
+# Example: Enable EPEL and add a COPR repository
+# Works on RHEL/CentOS/Rocky Linux/AlmaLinux; epel is skipped on Fedora
+
+# Enable EPEL (Extra Packages for Enterprise Linux)
+epel
+
+# Add COPR repository for lazygit
+copr atim/lazygit
+
+# Packages from EPEL and COPR
+yum htop
+yum lazygit
+
+# Standard packages
+yum git
+yum vim
