@@ -83,7 +83,7 @@ func (m *YumManager) AddRepoFile(repoURL string) (string, error) {
 		return "", fmt.Errorf("read repo file: %w", err)
 	}
 
-	if err := os.WriteFile(destPath, data, 0644); err != nil {
+	if err := os.WriteFile(destPath, data, 0644); err != nil { //nolint:gosec // .repo files must be world-readable for dnf/yum
 		return "", fmt.Errorf("write repo file: %w", err)
 	}
 
@@ -166,7 +166,7 @@ func (m *YumManager) AddBaseurlRepo(baseurlValue string, opts *RepoFileOptions) 
 		fmt.Fprintf(&sb, "gpgkey=file://%s\n", opts.GPGKeyPath)
 	}
 
-	if err := os.WriteFile(destPath, []byte(sb.String()), 0644); err != nil {
+	if err := os.WriteFile(destPath, []byte(sb.String()), 0644); err != nil { //nolint:gosec // .repo files must be world-readable for dnf/yum
 		return "", fmt.Errorf("write repo file: %w", err)
 	}
 

@@ -35,8 +35,12 @@ func TestEnableEPEL_Idempotent(t *testing.T) {
 	m, mock := dnfManager(t)
 	writeOsRelease(t, m, `ID="rocky"`)
 	// Pre-create epel.repo to simulate EPEL already enabled
-	os.MkdirAll(m.ReposDir, 0755)
-	os.WriteFile(filepath.Join(m.ReposDir, "epel.repo"), []byte("[epel]\n"), 0644)
+	if err := os.MkdirAll(m.ReposDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(m.ReposDir, "epel.repo"), []byte("[epel]\n"), 0644); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
 
 	if err := m.EnableEPEL(); err != nil {
 		t.Fatalf("unexpected error: %v", err)

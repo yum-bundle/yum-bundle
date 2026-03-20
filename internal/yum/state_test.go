@@ -155,7 +155,9 @@ func TestSaveState_Version(t *testing.T) {
 	}
 	data, _ := os.ReadFile(m.StatePath())
 	var raw map[string]any
-	json.Unmarshal(data, &raw)
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
 	if v, _ := raw["version"].(float64); int(v) != yum.StateVersion {
 		t.Errorf("expected version %d, got %v", yum.StateVersion, raw["version"])
 	}

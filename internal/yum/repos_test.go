@@ -119,8 +119,12 @@ func TestAddBaseurlRepo_Idempotent(t *testing.T) {
 func TestListCustomRepos(t *testing.T) {
 	m := testManager(t)
 	repoContent := "[docker-ce-stable]\nname=Docker CE\nbaseurl=https://download.docker.com/linux/centos/$releasever/$basearch/stable\nenabled=1\n"
-	os.MkdirAll(m.ReposDir, 0755)
-	os.WriteFile(filepath.Join(m.ReposDir, "docker-ce.repo"), []byte(repoContent), 0644)
+	if err := os.MkdirAll(m.ReposDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(m.ReposDir, "docker-ce.repo"), []byte(repoContent), 0644); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
 
 	repos, err := m.ListCustomRepos()
 	if err != nil {

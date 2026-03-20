@@ -18,9 +18,13 @@ func TestEnableCOPR_CallsDNF(t *testing.T) {
 func TestEnableCOPR_Idempotent(t *testing.T) {
 	m, mock := dnfManager(t)
 	// Pre-create the expected .repo file
-	os.MkdirAll(m.ReposDir, 0755)
+	if err := os.MkdirAll(m.ReposDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	coprPath := m.CoprRepoPathFor("atim/lazygit")
-	os.WriteFile(coprPath, []byte("[copr]\n"), 0644)
+	if err := os.WriteFile(coprPath, []byte("[copr]\n"), 0644); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
 
 	if err := m.EnableCOPR("atim/lazygit"); err != nil {
 		t.Fatalf("unexpected error: %v", err)

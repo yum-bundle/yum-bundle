@@ -82,7 +82,7 @@ func (m *YumManager) ImportGPGKey(keyURL string) (string, error) {
 			return "", fmt.Errorf("read GPG key data: %w", err)
 		}
 
-		if err := os.WriteFile(keyPath, data, 0644); err != nil {
+		if err := os.WriteFile(keyPath, data, 0644); err != nil { //nolint:gosec // GPG key files in /etc/pki/rpm-gpg/ are conventionally world-readable
 			return "", fmt.Errorf("write GPG key: %w", err)
 		}
 		fmt.Printf("✓ GPG key saved to: %s\n", keyPath)
