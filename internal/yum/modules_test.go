@@ -21,7 +21,7 @@ func TestEnableModule_RejectsInvalidFormat(t *testing.T) {
 
 func TestEnableModule_RequiresDNF(t *testing.T) {
 	m := testManager(t)
-	m.LookPath = func(name string) (string, error) {
+	m.LookPath = func(_ string) (string, error) {
 		return "", errNotFound
 	}
 	if err := m.EnableModule("nodejs:18"); err == nil {

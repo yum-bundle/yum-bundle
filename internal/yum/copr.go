@@ -60,7 +60,3 @@ func (m *YumManager) isCOPREnabled(copr string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
-
-// statFile is a variable so tests can override filesystem checks if needed.
-// Production code uses os.Stat directly via isCOPREnabled.
-var statFile = os.Stat

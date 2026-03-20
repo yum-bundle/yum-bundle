@@ -25,7 +25,7 @@ const (
 // keyHTTPClient is used for key/repo downloads; has timeout and enforces HTTPS on redirects.
 var keyHTTPClient = &http.Client{
 	Timeout: 30 * time.Second,
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	CheckRedirect: func(req *http.Request, _ []*http.Request) error {
 		if req.URL.Scheme != "https" {
 			return &redirectError{url: req.URL.String()}
 		}

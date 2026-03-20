@@ -26,7 +26,7 @@ func TestPkgCmd_PrefersDNF(t *testing.T) {
 func TestPkgCmd_FallsBackToYum(t *testing.T) {
 	mgr := &yum.YumManager{
 		Executor: testutil.NewMockExecutor(),
-		LookPath: func(name string) (string, error) {
+		LookPath: func(_ string) (string, error) {
 			return "", errors.New("not found")
 		},
 	}
@@ -39,7 +39,7 @@ func TestPkgCmd_Cached(t *testing.T) {
 	calls := 0
 	mgr := &yum.YumManager{
 		Executor: testutil.NewMockExecutor(),
-		LookPath: func(name string) (string, error) {
+		LookPath: func(_ string) (string, error) {
 			calls++
 			return "/usr/bin/dnf", nil
 		},

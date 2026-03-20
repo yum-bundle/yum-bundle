@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	installLock    bool
-	installLocked  bool
-	installDryRun  bool
+	installLock   bool
+	installLocked bool
+	installDryRun bool
 )
 
 var installCmd = &cobra.Command{
@@ -37,7 +37,7 @@ func init() {
 	rootCmd.RunE = runInstall
 }
 
-func runInstall(cmd *cobra.Command, args []string) error {
+func runInstall(_ *cobra.Command, _ []string) error {
 	if !installDryRun {
 		if err := checkRoot(); err != nil {
 			return err

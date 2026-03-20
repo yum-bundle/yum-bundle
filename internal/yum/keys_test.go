@@ -14,7 +14,7 @@ import (
 func keyManager(t *testing.T, keyContent string) *yum.YumManager {
 	t.Helper()
 	m := testManager(t)
-	m.HTTPGet = func(url string) (*http.Response, error) {
+	m.HTTPGet = func(_ string) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: 200,
 			Body:       io.NopCloser(strings.NewReader(keyContent)),

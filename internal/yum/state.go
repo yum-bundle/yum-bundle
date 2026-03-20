@@ -16,10 +16,10 @@ const (
 
 // State represents the yum-bundle managed state.
 type State struct {
-	Version      int      `json:"version"`
-	Packages     []string `json:"packages"`
-	Repos        []string `json:"repos"`
-	Keys         []string `json:"keys"`
+	Version  int      `json:"version"`
+	Packages []string `json:"packages"`
+	Repos    []string `json:"repos"`
+	Keys     []string `json:"keys"`
 }
 
 // NewState creates a new empty state.

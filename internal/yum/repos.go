@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 )
 
 // validateRepoURL ensures the URL uses https://. Rejects http://, file://, and other schemes.
@@ -33,17 +32,6 @@ func validateRepoURL(repoURL string) error {
 	default:
 		return fmt.Errorf("URL scheme %q not allowed; use https://", u.Scheme)
 	}
-}
-
-// repoFileHTTPClient is used for .repo file downloads.
-var repoFileHTTPClient = &http.Client{
-	Timeout: 30 * time.Second,
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if req.URL.Scheme != "https" {
-			return fmt.Errorf("redirect to non-HTTPS URL rejected: %s", req.URL)
-		}
-		return nil
-	},
 }
 
 // AddRepoFile downloads a .repo file from the given HTTPS URL and writes it to

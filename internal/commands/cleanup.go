@@ -38,7 +38,7 @@ func init() {
 	rootCmd.AddCommand(cleanupCmd)
 }
 
-func runCleanup(cmd *cobra.Command, args []string) error {
+func runCleanup(_ *cobra.Command, _ []string) error {
 	return doCleanup(cleanupForce, cleanupZap, cleanupAutoremove)
 }
 

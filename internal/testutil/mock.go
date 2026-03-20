@@ -82,7 +82,10 @@ func (m *MockExecutor) CallCount() int {
 }
 
 // AssertCalled fails the test if the command was not called.
-func (m *MockExecutor) AssertCalled(t interface{ Helper(); Errorf(string, ...any) }, name string, args ...string) {
+func (m *MockExecutor) AssertCalled(t interface {
+	Helper()
+	Errorf(string, ...any)
+}, name string, args ...string) {
 	t.Helper()
 	if !m.WasCalled(name, args...) {
 		t.Errorf("expected call %v but it was not made; calls were: %v", append([]string{name}, args...), m.Calls)
@@ -90,7 +93,10 @@ func (m *MockExecutor) AssertCalled(t interface{ Helper(); Errorf(string, ...any
 }
 
 // AssertNotCalled fails the test if the command was called.
-func (m *MockExecutor) AssertNotCalled(t interface{ Helper(); Errorf(string, ...any) }, name string, args ...string) {
+func (m *MockExecutor) AssertNotCalled(t interface {
+	Helper()
+	Errorf(string, ...any)
+}, name string, args ...string) {
 	t.Helper()
 	if m.WasCalled(name, args...) {
 		t.Errorf("expected %v NOT to be called, but it was", append([]string{name}, args...))

@@ -52,7 +52,7 @@ func writeOsRelease(t *testing.T, m *yum.YumManager, content string) {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "os-release")
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil { //nolint:gosec
 		t.Fatalf("write os-release: %v", err)
 	}
 	m.OsReleasePath = path

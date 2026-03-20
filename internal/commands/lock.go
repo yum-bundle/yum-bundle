@@ -38,7 +38,7 @@ func getLockFilePath() string {
 	return filepath.Join(dir, "Yumfile.lock")
 }
 
-func runLock(cmd *cobra.Command, args []string) error {
+func runLock(_ *cobra.Command, _ []string) error {
 	entries, err := yumfile.Parse(yumfilePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse Yumfile: %w", err)
@@ -91,7 +91,7 @@ func writeLockFileEntries(entries []pkgVer) error {
 	for _, pv := range entries {
 		lines = append(lines, pv.pkg+"="+pv.ver)
 	}
-	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0644)
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0644) //nolint:gosec // lock file is user-owned, 0644 is appropriate
 }
 
 // ReadLockFile returns package specs (pkg=version) from the lock file.

@@ -65,7 +65,7 @@ func doCheck(yumfilePath string) (ok bool, missing []string, entries []yumfile.E
 	return len(missing) == 0, missing, entries, nil
 }
 
-func runCheck(cmd *cobra.Command, args []string) error {
+func runCheck(_ *cobra.Command, _ []string) error {
 	ok, missing, entries, err := doCheck(yumfilePath)
 	if err != nil {
 		return err

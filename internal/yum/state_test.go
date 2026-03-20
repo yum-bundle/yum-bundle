@@ -73,7 +73,9 @@ func TestSaveAndLoadState(t *testing.T) {
 func TestLoadState_InvalidJSON(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
-	os.WriteFile(path, []byte("{invalid"), 0600)
+	if err := os.WriteFile(path, []byte("{invalid"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	m := &yum.YumManager{
 		Executor:  testutil.NewMockExecutor(),
 		StatePath: func() string { return path },

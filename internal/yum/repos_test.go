@@ -14,7 +14,7 @@ import (
 func repoManager(t *testing.T) *yum.YumManager {
 	t.Helper()
 	m := testManager(t)
-	m.HTTPGet = func(url string) (*http.Response, error) {
+	m.HTTPGet = func(_ string) (*http.Response, error) {
 		body := "[docker-ce-stable]\nname=Docker CE\nbaseurl=https://download.docker.com/linux/centos/$releasever/$basearch/stable\nenabled=1\ngpgcheck=1\n"
 		return &http.Response{
 			StatusCode: 200,
@@ -140,10 +140,14 @@ func TestListCustomRepos(t *testing.T) {
 
 func TestListCustomRepos_SkipsDefaultRepos(t *testing.T) {
 	m := testManager(t)
-	os.MkdirAll(m.ReposDir, 0755)
+	if err := os.MkdirAll(m.ReposDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	// Write a default fedora repo
 	fedoraRepo := "[fedora]\nname=Fedora\nbaseurl=https://mirrors.fedoraproject.org/...\nenabled=1\n"
-	os.WriteFile(filepath.Join(m.ReposDir, "fedora.repo"), []byte(fedoraRepo), 0644)
+	if err := os.WriteFile(filepath.Join(m.ReposDir, "fedora.repo"), []byte(fedoraRepo), 0644); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
 
 	repos, err := m.ListCustomRepos()
 	if err != nil {

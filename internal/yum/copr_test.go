@@ -43,7 +43,7 @@ func TestEnableCOPR_RequiresDNF(t *testing.T) {
 	mock := testutil.NewMockExecutor()
 	m := testManager(t)
 	m.Executor = mock
-	m.LookPath = func(name string) (string, error) {
+	m.LookPath = func(_ string) (string, error) {
 		return "", os.ErrNotExist
 	}
 	if err := m.EnableCOPR("user/project"); err == nil {

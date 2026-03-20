@@ -71,7 +71,7 @@ func collectOutdated(yumfilePath string) (outdated []OutdatedEntry, numYum int, 
 	return outdated, numYum, nil
 }
 
-func runOutdated(cmd *cobra.Command, args []string) error {
+func runOutdated(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 
 	outdated, numYum, err := collectOutdated(yumfilePath)

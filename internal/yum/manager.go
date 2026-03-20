@@ -9,7 +9,7 @@ import (
 // YumManager provides dependency-injected access to yum/dnf operations.
 // Construct with NewYumManager for production defaults, or create
 // directly with custom fields for testing.
-type YumManager struct {
+type YumManager struct { //nolint:revive // "yum.YumManager" stutter is intentional for clarity
 	Executor      Executor
 	HTTPGet       func(string) (*http.Response, error)
 	ReposDir      string

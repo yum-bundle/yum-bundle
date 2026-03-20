@@ -8,19 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"time"
 )
-
-// keyDownloadHTTPClient is used for GPG key downloads.
-var keyDownloadHTTPClient = &http.Client{
-	Timeout: 30 * time.Second,
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if req.URL.Scheme != "https" {
-			return fmt.Errorf("redirect to non-HTTPS URL rejected for security: %s", req.URL)
-		}
-		return nil
-	},
-}
 
 // validateKeyURL ensures the key URL uses https://.
 func validateKeyURL(keyURL string) error {

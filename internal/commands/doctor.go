@@ -28,7 +28,7 @@ func init() {
 	doctorCmd.Flags().BoolVar(&doctorYumfileOnly, "yumfile-only", false, "Only validate Yumfile; skip environment checks")
 }
 
-func runDoctor(cmd *cobra.Command, args []string) error {
+func runDoctor(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
 	ew := cmd.ErrOrStderr()
 	var failed bool
