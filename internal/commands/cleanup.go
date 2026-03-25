@@ -58,6 +58,7 @@ func doCleanup(force, zap, autoremove bool) error {
 	}
 
 	aptfilePackages := extractPackageNames(entries)
+	aptfileGroups := extractGroupNames(entries)
 
 	var packagesToRemove []string
 	var cachedState *yum.State
@@ -74,7 +75,23 @@ func doCleanup(force, zap, autoremove bool) error {
 		}
 	}
 
-	if len(packagesToRemove) == 0 {
+	// Groups are only cleaned up via state (not --zap mode).
+	var groupsToRemove []string
+	if !zap {
+		var state *yum.State
+		if cachedState != nil {
+			state = cachedState
+		} else {
+			state, err = mgr.LoadState()
+			if err != nil {
+				return fmt.Errorf("failed to load state: %w", err)
+			}
+			cachedState = state
+		}
+		groupsToRemove = state.GetGroupsNotIn(aptfileGroups)
+	}
+
+	if len(packagesToRemove) == 0 && len(groupsToRemove) == 0 {
 		fmt.Println("✓ Nothing to clean up")
 		return nil
 	}
@@ -82,16 +99,25 @@ func doCleanup(force, zap, autoremove bool) error {
 	if zap {
 		fmt.Printf("\nZAP MODE: The following %d packages are NOT in your Yumfile and will be removed:\n", len(packagesToRemove))
 	} else {
-		fmt.Printf("\nThe following %d packages were installed by yum-bundle but are no longer in your Yumfile:\n", len(packagesToRemove))
+		if len(packagesToRemove) > 0 {
+			fmt.Printf("\nThe following %d packages were installed by yum-bundle but are no longer in your Yumfile:\n", len(packagesToRemove))
+		}
 	}
 
 	for _, pkg := range packagesToRemove {
 		fmt.Printf("  - %s\n", pkg)
 	}
+
+	if len(groupsToRemove) > 0 {
+		fmt.Printf("\nThe following %d groups were installed by yum-bundle but are no longer in your Yumfile:\n", len(groupsToRemove))
+		for _, g := range groupsToRemove {
+			fmt.Printf("  - %s\n", g)
+		}
+	}
 	fmt.Println()
 
 	if !force {
-		fmt.Println("Run with --force to actually remove these packages")
+		fmt.Println("Run with --force to actually remove these packages/groups")
 		return nil
 	}
 
@@ -120,19 +146,31 @@ func doCleanup(force, zap, autoremove bool) error {
 		}
 	}
 
-	fmt.Printf("Removing %d packages...\n", len(packagesToRemove))
-	for _, pkg := range packagesToRemove {
-		if err := mgr.RemovePackage(pkg); err != nil {
-			return fmt.Errorf("failed to remove package %s: %w", pkg, err)
+	if len(packagesToRemove) > 0 {
+		fmt.Printf("Removing %d packages...\n", len(packagesToRemove))
+		for _, pkg := range packagesToRemove {
+			if err := mgr.RemovePackage(pkg); err != nil {
+				return fmt.Errorf("failed to remove package %s: %w", pkg, err)
+			}
+			state.RemovePackage(pkg)
 		}
-		state.RemovePackage(pkg)
+		fmt.Printf("✓ Removed %d packages\n", len(packagesToRemove))
+	}
+
+	if len(groupsToRemove) > 0 {
+		fmt.Printf("Removing %d groups...\n", len(groupsToRemove))
+		for _, g := range groupsToRemove {
+			if err := mgr.RemoveGroup(g); err != nil {
+				return fmt.Errorf("failed to remove group %s: %w", g, err)
+			}
+			state.RemoveGroup(g)
+		}
+		fmt.Printf("✓ Removed %d groups\n", len(groupsToRemove))
 	}
 
 	if err := mgr.SaveState(state); err != nil {
 		return fmt.Errorf("failed to save state: %w", err)
 	}
-
-	fmt.Printf("✓ Removed %d packages\n", len(packagesToRemove))
 
 	if autoremove {
 		if err := mgr.AutoRemove(); err != nil {
@@ -141,6 +179,22 @@ func doCleanup(force, zap, autoremove bool) error {
 	}
 
 	return nil
+}
+
+// extractGroupNames returns deduplicated group names from group entries.
+func extractGroupNames(entries []yumfile.Entry) []string {
+	seen := make(map[string]bool)
+	var names []string
+	for _, entry := range entries {
+		if entry.Type != yumfile.EntryTypeGroup {
+			continue
+		}
+		if !seen[entry.Value] {
+			seen[entry.Value] = true
+			names = append(names, entry.Value)
+		}
+	}
+	return names
 }
 
 // extractPackageNames returns deduplicated package names from yum entries.

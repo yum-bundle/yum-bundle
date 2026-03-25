@@ -11,7 +11,7 @@ import (
 
 const (
 	// StateVersion is the current version of the state file format.
-	StateVersion = 1
+	StateVersion = 2
 )
 
 // State represents the yum-bundle managed state.
@@ -20,6 +20,7 @@ type State struct {
 	Packages []string `json:"packages"`
 	Repos    []string `json:"repos"`
 	Keys     []string `json:"keys"`
+	Groups   []string `json:"groups"`
 }
 
 // NewState creates a new empty state.
@@ -29,6 +30,7 @@ func NewState() *State {
 		Packages: []string{},
 		Repos:    []string{},
 		Keys:     []string{},
+		Groups:   []string{},
 	}
 }
 
@@ -150,6 +152,41 @@ func (s *State) GetPackagesNotIn(packages []string) []string {
 	for _, pkg := range s.Packages {
 		if !slices.Contains(packages, pkg) {
 			result = append(result, pkg)
+		}
+	}
+	return result
+}
+
+// AddGroup adds a group to the state if not already present.
+func (s *State) AddGroup(group string) bool {
+	if slices.Contains(s.Groups, group) {
+		return false
+	}
+	s.Groups = append(s.Groups, group)
+	return true
+}
+
+// RemoveGroup removes a group from the state.
+func (s *State) RemoveGroup(group string) bool {
+	idx := slices.Index(s.Groups, group)
+	if idx == -1 {
+		return false
+	}
+	s.Groups = slices.Delete(s.Groups, idx, idx+1)
+	return true
+}
+
+// HasGroup checks if a group is tracked in the state.
+func (s *State) HasGroup(group string) bool {
+	return slices.Contains(s.Groups, group)
+}
+
+// GetGroupsNotIn returns groups in state that are not in the given list.
+func (s *State) GetGroupsNotIn(groups []string) []string {
+	var result []string
+	for _, g := range s.Groups {
+		if !slices.Contains(groups, g) {
+			result = append(result, g)
 		}
 	}
 	return result

@@ -58,6 +58,12 @@ func doCheck(yumfilePath string) (ok bool, missing []string, entries []yumfile.E
 					return false, nil, nil, fmt.Errorf("checking key %s: %w", entry.Value, statErr)
 				}
 			}
+
+		case yumfile.EntryTypeGroup:
+			installed, err := mgr.IsGroupInstalled(entry.Value)
+			if err != nil || !installed {
+				missing = append(missing, "group "+entry.Value)
+			}
 		}
 	}
 

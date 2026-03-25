@@ -27,6 +27,8 @@ const (
 	EntryTypeModule EntryType = "module"
 	// EntryTypeRPM installs an RPM package directly from a URL.
 	EntryTypeRPM EntryType = "rpm"
+	// EntryTypeGroup installs a package group via yum/dnf groupinstall.
+	EntryTypeGroup EntryType = "group"
 )
 
 // Entry represents a single parsed directive from a Yumfile, including
@@ -116,6 +118,8 @@ func parseLine(line string, lineNum int, original string) (Entry, error) {
 		entryType = EntryTypeModule
 	case "rpm":
 		entryType = EntryTypeRPM
+	case "group":
+		entryType = EntryTypeGroup
 	default:
 		return Entry{}, fmt.Errorf("unknown directive: %s", directive)
 	}

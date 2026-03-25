@@ -21,14 +21,15 @@ copr atim/lazygit
 epel
 module nodejs:18
 rpm https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+group Development Tools
 `
 		path := writeTempYumfile(t, content)
 		entries, err := yumfile.Parse(path)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(entries) != 9 {
-			t.Fatalf("expected 9 entries, got %d", len(entries))
+		if len(entries) != 10 {
+			t.Fatalf("expected 10 entries, got %d", len(entries))
 		}
 		assertEntry(t, entries[0], yumfile.EntryTypeYum, "vim")
 		assertEntry(t, entries[1], yumfile.EntryTypeYum, "curl")
@@ -39,6 +40,7 @@ rpm https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
 		assertEntry(t, entries[6], yumfile.EntryTypeEPEL, "")
 		assertEntry(t, entries[7], yumfile.EntryTypeModule, "nodejs:18")
 		assertEntry(t, entries[8], yumfile.EntryTypeRPM, "https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm")
+		assertEntry(t, entries[9], yumfile.EntryTypeGroup, "Development Tools")
 	})
 
 	t.Run("version pinning formats", func(t *testing.T) {

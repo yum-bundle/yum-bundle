@@ -25,7 +25,8 @@ var installCmd = &cobra.Command{
 4. Enable DNF modules if specified
 5. Run dnf/yum makecache (unless --no-update is specified)
 6. Install all specified packages
-7. Install RPMs from URLs if specified`,
+7. Install all specified package groups
+8. Install RPMs from URLs if specified`,
 	RunE: runInstall,
 }
 
@@ -166,6 +167,25 @@ func runInstall(_ *cobra.Command, _ []string) error {
 		fmt.Println("No packages to install")
 	}
 
+	// Install package groups
+	for _, entry := range entries {
+		if entry.Type == yumfile.EntryTypeGroup {
+			installed, err := mgr.IsGroupInstalled(entry.Value)
+			if err != nil {
+				fmt.Printf("Warning: could not check if group %s is installed: %v\n", entry.Value, err)
+			}
+			if installed {
+				fmt.Printf("✓ Group %s is already installed\n", entry.Value)
+				state.AddGroup(entry.Value)
+				continue
+			}
+			if err := mgr.InstallGroup(entry.Value); err != nil {
+				return fmt.Errorf("failed to install group %s: %w", entry.Value, err)
+			}
+			state.AddGroup(entry.Value)
+		}
+	}
+
 	// Install RPMs from URLs
 	for _, entry := range entries {
 		if entry.Type == yumfile.EntryTypeRPM {
@@ -202,7 +222,7 @@ func runInstallDryRun(entries []yumfile.Entry) error {
 		repoSet[r.YumfileLine] = true
 	}
 
-	var wouldAddKeys, wouldAddRepos, wouldInstall, wouldInstallRPM []string
+	var wouldAddKeys, wouldAddRepos, wouldInstall, wouldInstallGroups, wouldInstallRPM []string
 
 	for _, entry := range entries {
 		switch entry.Type {
@@ -223,6 +243,11 @@ func runInstallDryRun(entries []yumfile.Entry) error {
 			if err != nil || !installed {
 				wouldInstall = append(wouldInstall, entry.Value)
 			}
+		case yumfile.EntryTypeGroup:
+			installed, err := mgr.IsGroupInstalled(entry.Value)
+			if err != nil || !installed {
+				wouldInstallGroups = append(wouldInstallGroups, entry.Value)
+			}
 		case yumfile.EntryTypeRPM:
 			wouldInstallRPM = append(wouldInstallRPM, entry.Value)
 		}
@@ -237,16 +262,19 @@ func runInstallDryRun(entries []yumfile.Entry) error {
 	for _, r := range wouldAddRepos {
 		fmt.Printf("Would add: %s\n", r)
 	}
-	if len(wouldInstall) > 0 {
+	if len(wouldInstall) > 0 || len(wouldInstallGroups) > 0 {
 		fmt.Printf("Would run dnf/yum makecache\n")
 		for _, p := range wouldInstall {
 			fmt.Printf("Would install: %s\n", p)
 		}
 	}
+	for _, g := range wouldInstallGroups {
+		fmt.Printf("Would install group: %s\n", g)
+	}
 	for _, r := range wouldInstallRPM {
 		fmt.Printf("Would install RPM: %s\n", r)
 	}
-	if len(wouldAddKeys) == 0 && len(wouldAddRepos) == 0 && len(wouldInstall) == 0 && len(wouldInstallRPM) == 0 {
+	if len(wouldAddKeys) == 0 && len(wouldAddRepos) == 0 && len(wouldInstall) == 0 && len(wouldInstallGroups) == 0 && len(wouldInstallRPM) == 0 {
 		fmt.Println("Nothing to do; all entries already present.")
 	}
 	return nil
