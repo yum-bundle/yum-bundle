@@ -1,7 +1,13 @@
-# yum-bundle
+<p align="center">
+  <img src="docs/icon-512.png" width="96" height="96" alt="yum-bundle">
+</p>
 
-[![CI](https://github.com/yum-bundle/yum-bundle/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yum-bundle/yum-bundle/actions/workflows/ci.yml)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+<h1 align="center">yum-bundle</h1>
+
+<p align="center">
+  <a href="https://github.com/yum-bundle/yum-bundle/actions/workflows/ci.yml"><img src="https://github.com/yum-bundle/yum-bundle/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+</p>
 
 A declarative, Brewfile-like wrapper for `yum`/`dnf`, inspired by `brew bundle` — not a full config management system.
 
