@@ -61,7 +61,9 @@ func (m *YumManager) IsPackageInstalled(packageName string) (bool, error) {
 }
 
 // InstallPackage installs a package using dnf/yum.
-func (m *YumManager) InstallPackage(spec string) error {
+// excludes is an optional list of package patterns to pass as --exclude=<pkg>
+// to the dnf/yum install command.
+func (m *YumManager) InstallPackage(spec string, excludes []string) error {
 	if spec == "" {
 		return fmt.Errorf("package name cannot be empty")
 	}
@@ -70,7 +72,13 @@ func (m *YumManager) InstallPackage(spec string) error {
 	}
 	fmt.Printf("Installing package: %s\n", spec)
 
-	if err := m.runCommand(m.PkgCmd(), "install", "-y", spec); err != nil {
+	args := []string{"install", "-y"}
+	for _, ex := range excludes {
+		args = append(args, "--exclude="+ex)
+	}
+	args = append(args, spec)
+
+	if err := m.runCommand(m.PkgCmd(), args...); err != nil {
 		return wrapCommandError(err, "install package", spec)
 	}
 

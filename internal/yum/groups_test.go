@@ -7,7 +7,7 @@ import (
 
 func TestInstallGroup_CallsDNF(t *testing.T) {
 	m, mock := dnfManager(t)
-	if err := m.InstallGroup("Development Tools"); err != nil {
+	if err := m.InstallGroup("Development Tools", nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	mock.AssertCalled(t, "dnf", "groupinstall", "-y", "Development Tools")
@@ -15,7 +15,7 @@ func TestInstallGroup_CallsDNF(t *testing.T) {
 
 func TestInstallGroup_GroupID(t *testing.T) {
 	m, mock := dnfManager(t)
-	if err := m.InstallGroup("development"); err != nil {
+	if err := m.InstallGroup("development", nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	mock.AssertCalled(t, "dnf", "groupinstall", "-y", "development")
@@ -23,16 +23,25 @@ func TestInstallGroup_GroupID(t *testing.T) {
 
 func TestInstallGroup_EmptyName(t *testing.T) {
 	m, _ := dnfManager(t)
-	if err := m.InstallGroup(""); err == nil {
+	if err := m.InstallGroup("", nil); err == nil {
 		t.Error("expected error for empty group name")
 	}
 }
 
 func TestInstallGroup_InvalidName(t *testing.T) {
 	m, _ := dnfManager(t)
-	if err := m.InstallGroup("../etc/passwd"); err == nil {
+	if err := m.InstallGroup("../etc/passwd", nil); err == nil {
 		t.Error("expected error for invalid group name")
 	}
+}
+
+func TestInstallGroup_WithExcludes(t *testing.T) {
+	m, mock := dnfManager(t)
+	excludes := []string{"kernel", "kernel-devel"}
+	if err := m.InstallGroup("Development Tools", excludes); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "groupinstall", "-y", "--exclude=kernel", "--exclude=kernel-devel", "Development Tools")
 }
 
 func TestRemoveGroup_CallsDNF(t *testing.T) {

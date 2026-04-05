@@ -110,6 +110,24 @@ group "Development Tools"        # compiler toolchain
 		assertEntry(t, entries[9], yumfile.EntryTypeGroup, "Development Tools")
 	})
 
+	t.Run("exclude directive", func(t *testing.T) {
+		content := `exclude vim
+exclude kernel*
+exclude python2*  # comment
+`
+		path := writeTempYumfile(t, content)
+		entries, err := yumfile.Parse(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entries) != 3 {
+			t.Fatalf("expected 3 entries, got %d", len(entries))
+		}
+		assertEntry(t, entries[0], yumfile.EntryTypeExclude, "vim")
+		assertEntry(t, entries[1], yumfile.EntryTypeExclude, "kernel*")
+		assertEntry(t, entries[2], yumfile.EntryTypeExclude, "python2*")
+	})
+
 	t.Run("returns error on unknown directive", func(t *testing.T) {
 		content := "unknown foo\n"
 		path := writeTempYumfile(t, content)

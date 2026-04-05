@@ -44,6 +44,21 @@ func runDoctor(cmd *cobra.Command, _ []string) error {
 		}
 	} else {
 		fmt.Fprintf(w, "✓ Yumfile valid (%d entries)\n", len(entries))
+
+		// Warn if a yum package is also listed in an exclude directive
+		yumPkgs := make(map[string]int) // pkg name → line number
+		for _, entry := range entries {
+			if entry.Type == yumfile.EntryTypeYum {
+				yumPkgs[entry.Value] = entry.LineNum
+			}
+		}
+		for _, entry := range entries {
+			if entry.Type == yumfile.EntryTypeExclude {
+				if lineNum, found := yumPkgs[entry.Value]; found {
+					fmt.Fprintf(w, "⚠ line %d: yum %s is also listed in an exclude directive\n", lineNum, entry.Value)
+				}
+			}
+		}
 	}
 
 	if doctorYumfileOnly {
