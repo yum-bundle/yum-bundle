@@ -101,6 +101,22 @@ func TestAddBaseurlRepo_WithGPGKey(t *testing.T) {
 	}
 }
 
+func TestAddBaseurlRepo_NoGPGKey(t *testing.T) {
+	m := testManager(t)
+	path, err := m.AddBaseurlRepo("https://packages.example.com/stable/x86_64/", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, _ := os.ReadFile(path)
+	content := string(data)
+	if !strings.Contains(content, "gpgcheck=0") {
+		t.Errorf("gpgcheck=0 expected when no key path provided: %s", content)
+	}
+	if strings.Contains(content, "gpgkey=") {
+		t.Errorf("gpgkey= should not appear when no key path provided: %s", content)
+	}
+}
+
 func TestAddBaseurlRepo_Idempotent(t *testing.T) {
 	m := testManager(t)
 	p1, err := m.AddBaseurlRepo("https://packages.example.com/stable/x86_64/", nil)
