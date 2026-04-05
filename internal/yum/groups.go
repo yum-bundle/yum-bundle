@@ -43,13 +43,21 @@ func (m *YumManager) IsGroupInstalled(groupName string) (bool, error) {
 }
 
 // InstallGroup installs a package group using dnf/yum groupinstall.
-func (m *YumManager) InstallGroup(groupName string) error {
+// excludes is an optional list of package patterns to pass as --exclude=<pkg>
+// to the dnf/yum groupinstall command.
+func (m *YumManager) InstallGroup(groupName string, excludes []string) error {
 	if err := validateGroupName(groupName); err != nil {
 		return err
 	}
 	fmt.Printf("Installing group: %s\n", groupName)
 
-	if err := m.runCommand(m.PkgCmd(), "groupinstall", "-y", groupName); err != nil {
+	args := []string{"groupinstall", "-y"}
+	for _, ex := range excludes {
+		args = append(args, "--exclude="+ex)
+	}
+	args = append(args, groupName)
+
+	if err := m.runCommand(m.PkgCmd(), args...); err != nil {
 		return wrapCommandError(err, "install group", groupName)
 	}
 

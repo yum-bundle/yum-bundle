@@ -29,6 +29,9 @@ const (
 	EntryTypeRPM EntryType = "rpm"
 	// EntryTypeGroup installs a package group via yum/dnf groupinstall.
 	EntryTypeGroup EntryType = "group"
+	// EntryTypeExclude prevents a package from being installed or upgraded.
+	// The value is passed as --exclude=<pkg> to every dnf/yum install/groupinstall.
+	EntryTypeExclude EntryType = "exclude"
 )
 
 // Entry represents a single parsed directive from a Yumfile, including
@@ -129,6 +132,8 @@ func parseLine(line string, lineNum int, original string) (Entry, error) {
 		entryType = EntryTypeRPM
 	case "group":
 		entryType = EntryTypeGroup
+	case "exclude":
+		entryType = EntryTypeExclude
 	default:
 		return Entry{}, fmt.Errorf("unknown directive: %s", directive)
 	}

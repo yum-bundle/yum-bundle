@@ -44,7 +44,7 @@ func TestIsPackageInstalled_NotInstalled(t *testing.T) {
 
 func TestInstallPackage_CallsDNF(t *testing.T) {
 	m, mock := dnfManager(t)
-	if err := m.InstallPackage("vim"); err != nil {
+	if err := m.InstallPackage("vim", nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	mock.AssertCalled(t, "dnf", "install", "-y", "vim")
@@ -52,7 +52,7 @@ func TestInstallPackage_CallsDNF(t *testing.T) {
 
 func TestInstallPackage_VersionPinned(t *testing.T) {
 	m, mock := dnfManager(t)
-	if err := m.InstallPackage("nodejs = 18.0.0"); err != nil {
+	if err := m.InstallPackage("nodejs = 18.0.0", nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	mock.AssertCalled(t, "dnf", "install", "-y", "nodejs = 18.0.0")
@@ -60,16 +60,25 @@ func TestInstallPackage_VersionPinned(t *testing.T) {
 
 func TestInstallPackage_EmptyName(t *testing.T) {
 	m, _ := dnfManager(t)
-	if err := m.InstallPackage(""); err == nil {
+	if err := m.InstallPackage("", nil); err == nil {
 		t.Error("expected error for empty package name")
 	}
 }
 
 func TestInstallPackage_InvalidName(t *testing.T) {
 	m, _ := dnfManager(t)
-	if err := m.InstallPackage("../etc/passwd"); err == nil {
+	if err := m.InstallPackage("../etc/passwd", nil); err == nil {
 		t.Error("expected error for invalid package name")
 	}
+}
+
+func TestInstallPackage_WithExcludes(t *testing.T) {
+	m, mock := dnfManager(t)
+	excludes := []string{"kernel", "python2*"}
+	if err := m.InstallPackage("vim", excludes); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "install", "-y", "--exclude=kernel", "--exclude=python2*", "vim")
 }
 
 func TestRemovePackage(t *testing.T) {

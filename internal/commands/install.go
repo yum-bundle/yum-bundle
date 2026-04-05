@@ -133,6 +133,14 @@ func runInstall(_ *cobra.Command, _ []string) error {
 		fmt.Println("Warning: Repositories were added; run without --no-update to fetch package metadata.")
 	}
 
+	// Collect exclude directives to pass to every install command
+	var excludes []string
+	for _, entry := range entries {
+		if entry.Type == yumfile.EntryTypeExclude {
+			excludes = append(excludes, entry.Value)
+		}
+	}
+
 	packagesToInstall := []string{}
 	if installLocked {
 		specs, err := ReadLockFile()
@@ -161,7 +169,7 @@ func runInstall(_ *cobra.Command, _ []string) error {
 				state.AddPackage(pkgName)
 				continue
 			}
-			if err := mgr.InstallPackage(pkg); err != nil {
+			if err := mgr.InstallPackage(pkg, excludes); err != nil {
 				return fmt.Errorf("failed to install package %s: %w", pkg, err)
 			}
 			state.AddPackage(pkgName)
@@ -183,7 +191,7 @@ func runInstall(_ *cobra.Command, _ []string) error {
 				state.AddGroup(entry.Value)
 				continue
 			}
-			if err := mgr.InstallGroup(entry.Value); err != nil {
+			if err := mgr.InstallGroup(entry.Value, excludes); err != nil {
 				return fmt.Errorf("failed to install group %s: %w", entry.Value, err)
 			}
 			state.AddGroup(entry.Value)
