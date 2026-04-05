@@ -32,7 +32,9 @@ func (m *YumManager) EnableCOPR(copr string) error {
 		return nil
 	}
 
-	if err := m.runCommand("dnf", "copr", "enable", "-y", copr); err != nil {
+	args := append([]string{"copr", "enable", "-y"}, m.ProxySetopt()...)
+	args = append(args, copr)
+	if err := m.runCommand("dnf", args...); err != nil {
 		return wrapCommandError(err, "enable COPR", copr)
 	}
 

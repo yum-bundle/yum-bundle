@@ -22,9 +22,12 @@ const (
 	StateFile = "state.json"
 )
 
-// keyHTTPClient is used for key/repo downloads; has timeout and enforces HTTPS on redirects.
+// keyHTTPClient is used for key/repo downloads; has timeout, proxy support, and enforces HTTPS on redirects.
 var keyHTTPClient = &http.Client{
 	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+	},
 	CheckRedirect: func(req *http.Request, _ []*http.Request) error {
 		if req.URL.Scheme != "https" {
 			return &redirectError{url: req.URL.String()}
