@@ -161,6 +161,78 @@ repo 'https://example.com/my.repo'
 	})
 }
 
+func TestParseChecksumSuffix(t *testing.T) {
+	t.Run("key with sha256 checksum", func(t *testing.T) {
+		content := "key https://example.com/gpg.key sha256=abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890\n"
+		path := writeTempYumfile(t, content)
+		entries, err := yumfile.Parse(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entries) != 1 {
+			t.Fatalf("expected 1 entry, got %d", len(entries))
+		}
+		e := entries[0]
+		assertEntry(t, e, yumfile.EntryTypeKey, "https://example.com/gpg.key")
+		if e.ChecksumAlgo != "sha256" {
+			t.Errorf("expected ChecksumAlgo=sha256, got %q", e.ChecksumAlgo)
+		}
+		if e.Checksum != "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890" {
+			t.Errorf("unexpected Checksum: %q", e.Checksum)
+		}
+	})
+
+	t.Run("repo with sha256 checksum", func(t *testing.T) {
+		content := "repo https://example.com/my.repo sha256=abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890\n"
+		path := writeTempYumfile(t, content)
+		entries, err := yumfile.Parse(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entries) != 1 {
+			t.Fatalf("expected 1 entry, got %d", len(entries))
+		}
+		e := entries[0]
+		assertEntry(t, e, yumfile.EntryTypeRepo, "https://example.com/my.repo")
+		if e.ChecksumAlgo != "sha256" {
+			t.Errorf("expected ChecksumAlgo=sha256, got %q", e.ChecksumAlgo)
+		}
+	})
+
+	t.Run("key without checksum has empty fields", func(t *testing.T) {
+		content := "key https://example.com/gpg.key\n"
+		path := writeTempYumfile(t, content)
+		entries, err := yumfile.Parse(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entries) != 1 {
+			t.Fatalf("expected 1 entry, got %d", len(entries))
+		}
+		e := entries[0]
+		assertEntry(t, e, yumfile.EntryTypeKey, "https://example.com/gpg.key")
+		if e.ChecksumAlgo != "" {
+			t.Errorf("expected empty ChecksumAlgo, got %q", e.ChecksumAlgo)
+		}
+		if e.Checksum != "" {
+			t.Errorf("expected empty Checksum, got %q", e.Checksum)
+		}
+	})
+
+	t.Run("checksum suffix is case-insensitive", func(t *testing.T) {
+		content := "key https://example.com/gpg.key SHA256=abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890\n"
+		path := writeTempYumfile(t, content)
+		entries, err := yumfile.Parse(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		e := entries[0]
+		if e.ChecksumAlgo != "sha256" {
+			t.Errorf("expected ChecksumAlgo=sha256 (lowercased), got %q", e.ChecksumAlgo)
+		}
+	})
+}
+
 func TestExtractPkgName(t *testing.T) {
 	tests := []struct {
 		spec string

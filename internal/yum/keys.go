@@ -40,8 +40,9 @@ func (m *YumManager) KeyPathForURL(keyURL string) string {
 // ImportGPGKey downloads a GPG key from an HTTPS URL, saves it to KeyDir, and
 // imports it with rpm --import. Idempotent: if the key file already exists the
 // download is skipped but rpm --import is still run (rpm --import is idempotent).
+// checksumAlgo and checksum are optional: pass empty strings to skip verification.
 // Returns the path of the saved key file.
-func (m *YumManager) ImportGPGKey(keyURL string) (string, error) {
+func (m *YumManager) ImportGPGKey(keyURL, checksumAlgo, checksum string) (string, error) {
 	if err := validateKeyURL(keyURL); err != nil {
 		return "", err
 	}
@@ -68,6 +69,10 @@ func (m *YumManager) ImportGPGKey(keyURL string) (string, error) {
 		data, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return "", fmt.Errorf("read GPG key data: %w", err)
+		}
+
+		if err := verifyChecksum(data, checksumAlgo, checksum); err != nil {
+			return "", fmt.Errorf("GPG key checksum verification failed: %w", err)
 		}
 
 		if err := os.WriteFile(keyPath, data, 0644); err != nil { //nolint:gosec // GPG key files in /etc/pki/rpm-gpg/ are conventionally world-readable

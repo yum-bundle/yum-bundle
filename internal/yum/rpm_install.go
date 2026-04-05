@@ -2,7 +2,10 @@ package yum
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -11,7 +14,9 @@ import (
 // Uses dnf if available (handles dependencies), otherwise falls back to rpm -i.
 // This is useful for repo-setup packages like epel-release, rpmfusion-free-release, etc.
 // Only https:// URLs are accepted.
-func (m *YumManager) InstallRPMFromURL(rpmURL string) error {
+// checksumAlgo and checksum are optional: pass empty strings to skip verification.
+// When a checksum is provided, the RPM is downloaded and verified before installation.
+func (m *YumManager) InstallRPMFromURL(rpmURL, checksumAlgo, checksum string) error {
 	if err := validateRPMURL(rpmURL); err != nil {
 		return err
 	}
@@ -27,12 +32,51 @@ func (m *YumManager) InstallRPMFromURL(rpmURL string) error {
 		}
 	}
 
-	// dnf can install RPMs from URLs directly and resolves deps
+	// When a checksum is specified, download the RPM ourselves to verify it,
+	// then install from the local temporary file.
+	installTarget := rpmURL
+	if checksumAlgo != "" {
+		resp, err := m.HTTPGet(rpmURL)
+		if err != nil {
+			return fmt.Errorf("download RPM: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("download RPM: HTTP %d", resp.StatusCode)
+		}
+
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("read RPM data: %w", err)
+		}
+
+		if err := verifyChecksum(data, checksumAlgo, checksum); err != nil {
+			return fmt.Errorf("RPM checksum verification failed: %w", err)
+		}
+
+		tmpFile, err := os.CreateTemp("", "yum-bundle-*.rpm")
+		if err != nil {
+			return fmt.Errorf("create temp file for RPM: %w", err)
+		}
+		defer os.Remove(tmpFile.Name())
+
+		if _, err := tmpFile.Write(data); err != nil {
+			tmpFile.Close()
+			return fmt.Errorf("write temp RPM file: %w", err)
+		}
+		if err := tmpFile.Close(); err != nil {
+			return fmt.Errorf("close temp RPM file: %w", err)
+		}
+		installTarget = tmpFile.Name()
+	}
+
+	// dnf can install RPMs from URLs or local paths directly and resolves deps
 	var err error
 	if m.IsDNF() {
-		err = m.runCommand("dnf", "install", "-y", rpmURL)
+		err = m.runCommand("dnf", "install", "-y", installTarget)
 	} else {
-		err = m.runCommand("yum", "install", "-y", rpmURL)
+		err = m.runCommand("yum", "install", "-y", installTarget)
 	}
 	if err != nil {
 		return wrapCommandError(err, "install RPM from URL", rpmURL)
