@@ -54,13 +54,26 @@ func runDoctor(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Check dnf availability
+	hasDNF := false
 	if _, err := exec.LookPath("dnf"); err == nil {
+		hasDNF = true
 		fmt.Fprintln(w, "✓ dnf available")
 	} else if _, err := exec.LookPath("yum"); err == nil {
 		fmt.Fprintln(w, "✓ yum available (dnf not found)")
 	} else {
 		fmt.Fprintf(ew, "✗ neither dnf nor yum found on PATH\n")
 		failed = true
+	}
+
+	// Check dnf-only directives compatibility
+	if entries != nil && !hasDNF {
+		for _, entry := range entries {
+			if entry.Type == yumfile.EntryTypeCopr || entry.Type == yumfile.EntryTypeModule {
+				fmt.Fprintf(ew, "✗ line %d: %s %s requires dnf (not available)\n",
+					entry.LineNum, entry.Type, entry.Value)
+				failed = true
+			}
+		}
 	}
 
 	// Check rpm availability (needed for key import, package checks)
