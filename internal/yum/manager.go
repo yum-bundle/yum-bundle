@@ -2,6 +2,7 @@ package yum
 
 import (
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 )
@@ -56,4 +57,25 @@ func (m *YumManager) PkgCmd() string {
 // IsDNF returns true when the resolved package manager is dnf.
 func (m *YumManager) IsDNF() bool {
 	return m.PkgCmd() == "dnf"
+}
+
+// proxyFromEnv returns the proxy URL from standard environment variables,
+// or "" if no proxy is configured.
+func proxyFromEnv() string {
+	for _, key := range []string{"https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY"} {
+		if v := os.Getenv(key); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// ProxySetopt returns a slice containing "--setopt=proxy=<url>" when a proxy
+// environment variable is set, or nil when no proxy is configured.
+// The returned slice can be appended directly to dnf/yum argument lists.
+func (m *YumManager) ProxySetopt() []string {
+	if p := proxyFromEnv(); p != "" {
+		return []string{"--setopt=proxy=" + p}
+	}
+	return nil
 }

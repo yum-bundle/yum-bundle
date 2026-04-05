@@ -2,6 +2,7 @@ package yum_test
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/yum-bundle/yum-bundle/internal/testutil"
@@ -143,6 +144,47 @@ Release      : 1.fc39
 	if ver != "9.0.0-1.fc39" {
 		t.Errorf("expected 9.0.0-1.fc39, got %q", ver)
 	}
+}
+
+func TestInstallPackage_WithProxy(t *testing.T) {
+	for _, key := range []string{"https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY"} {
+		os.Unsetenv(key)
+	}
+	os.Setenv("HTTPS_PROXY", "http://proxy.example.com:3128")
+	defer os.Unsetenv("HTTPS_PROXY")
+
+	m, mock := dnfManager(t)
+	if err := m.InstallPackage("vim", nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "install", "-y", "--setopt=proxy=http://proxy.example.com:3128", "vim")
+}
+
+func TestMakecacheOrUpdate_WithProxy(t *testing.T) {
+	for _, key := range []string{"https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY"} {
+		os.Unsetenv(key)
+	}
+	os.Setenv("HTTPS_PROXY", "http://proxy.example.com:3128")
+	defer os.Unsetenv("HTTPS_PROXY")
+
+	m, mock := dnfManager(t)
+	if err := m.MakecacheOrUpdate(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "makecache", "--setopt=proxy=http://proxy.example.com:3128")
+}
+
+func TestInstallPackage_NoProxy(t *testing.T) {
+	for _, key := range []string{"https_proxy", "HTTPS_PROXY", "http_proxy", "HTTP_PROXY"} {
+		os.Unsetenv(key)
+	}
+
+	m, mock := dnfManager(t)
+	if err := m.InstallPackage("vim", nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	mock.AssertCalled(t, "dnf", "install", "-y", "vim")
+	mock.AssertNotCalled(t, "dnf", "install", "-y", "--setopt=proxy=", "vim")
 }
 
 func TestGetAllInstalledPackages_DNF(t *testing.T) {

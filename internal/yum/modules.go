@@ -28,7 +28,9 @@ func (m *YumManager) EnableModule(module string) error {
 		return nil
 	}
 
-	if err := m.runCommand("dnf", "module", "enable", "-y", module); err != nil {
+	args := append([]string{"module", "enable", "-y"}, m.ProxySetopt()...)
+	args = append(args, module)
+	if err := m.runCommand("dnf", args...); err != nil {
 		return wrapCommandError(err, "enable module", module)
 	}
 

@@ -72,12 +72,11 @@ func (m *YumManager) InstallPackage(spec string, excludes []string) error {
 	}
 	fmt.Printf("Installing package: %s\n", spec)
 
-	args := []string{"install", "-y"}
+	args := append([]string{"install", "-y"}, m.ProxySetopt()...)
 	for _, ex := range excludes {
 		args = append(args, "--exclude="+ex)
 	}
 	args = append(args, spec)
-
 	if err := m.runCommand(m.PkgCmd(), args...); err != nil {
 		return wrapCommandError(err, "install package", spec)
 	}
@@ -91,7 +90,8 @@ func (m *YumManager) InstallPackage(spec string, excludes []string) error {
 func (m *YumManager) MakecacheOrUpdate() error {
 	fmt.Println("Refreshing package metadata...")
 
-	if err := m.runCommand(m.PkgCmd(), "makecache"); err != nil {
+	args := append([]string{"makecache"}, m.ProxySetopt()...)
+	if err := m.runCommand(m.PkgCmd(), args...); err != nil {
 		return wrapCommandError(err, "refresh package metadata", "")
 	}
 
@@ -103,7 +103,9 @@ func (m *YumManager) MakecacheOrUpdate() error {
 func (m *YumManager) RemovePackage(packageName string) error {
 	fmt.Printf("Removing package: %s\n", packageName)
 
-	if err := m.runCommand(m.PkgCmd(), "remove", "-y", packageName); err != nil {
+	args := append([]string{"remove", "-y"}, m.ProxySetopt()...)
+	args = append(args, packageName)
+	if err := m.runCommand(m.PkgCmd(), args...); err != nil {
 		return wrapCommandError(err, "remove package", packageName)
 	}
 
@@ -115,7 +117,8 @@ func (m *YumManager) RemovePackage(packageName string) error {
 func (m *YumManager) AutoRemove() error {
 	fmt.Println("Removing orphaned dependencies...")
 
-	if err := m.runCommand(m.PkgCmd(), "autoremove", "-y"); err != nil {
+	args := append([]string{"autoremove", "-y"}, m.ProxySetopt()...)
+	if err := m.runCommand(m.PkgCmd(), args...); err != nil {
 		return wrapCommandError(err, "autoremove packages", "")
 	}
 

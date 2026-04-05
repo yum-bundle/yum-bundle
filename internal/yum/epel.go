@@ -24,7 +24,9 @@ func (m *YumManager) EnableEPEL() error {
 		return nil
 	}
 
-	if err := m.runCommand(m.PkgCmd(), "install", "-y", "epel-release"); err != nil {
+	args := append([]string{"install", "-y"}, m.ProxySetopt()...)
+	args = append(args, "epel-release")
+	if err := m.runCommand(m.PkgCmd(), args...); err != nil {
 		return wrapCommandError(err, "enable EPEL", "epel-release")
 	}
 

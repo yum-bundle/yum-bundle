@@ -51,12 +51,11 @@ func (m *YumManager) InstallGroup(groupName string, excludes []string) error {
 	}
 	fmt.Printf("Installing group: %s\n", groupName)
 
-	args := []string{"groupinstall", "-y"}
+	args := append([]string{"groupinstall", "-y"}, m.ProxySetopt()...)
 	for _, ex := range excludes {
 		args = append(args, "--exclude="+ex)
 	}
 	args = append(args, groupName)
-
 	if err := m.runCommand(m.PkgCmd(), args...); err != nil {
 		return wrapCommandError(err, "install group", groupName)
 	}
@@ -69,7 +68,9 @@ func (m *YumManager) InstallGroup(groupName string, excludes []string) error {
 func (m *YumManager) RemoveGroup(groupName string) error {
 	fmt.Printf("Removing group: %s\n", groupName)
 
-	if err := m.runCommand(m.PkgCmd(), "groupremove", "-y", groupName); err != nil {
+	args := append([]string{"groupremove", "-y"}, m.ProxySetopt()...)
+	args = append(args, groupName)
+	if err := m.runCommand(m.PkgCmd(), args...); err != nil {
 		return wrapCommandError(err, "remove group", groupName)
 	}
 
