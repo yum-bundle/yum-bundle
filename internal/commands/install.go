@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/yum-bundle/yum-bundle/internal/yum"
 	"github.com/yum-bundle/yum-bundle/internal/yumfile"
 )
 
@@ -91,11 +92,14 @@ func runInstall(_ *cobra.Command, _ []string) error {
 			reposAdded = true
 
 		case yumfile.EntryTypeBaseurl:
-			repoPath, err := mgr.AddBaseurlRepo(entry.Value, nil)
+			opts := &yum.RepoFileOptions{}
+			if pendingKeyPath != "" {
+				opts.GPGKeyPath = pendingKeyPath
+			}
+			repoPath, err := mgr.AddBaseurlRepo(entry.Value, opts)
 			if err != nil {
 				return fmt.Errorf("failed to add baseurl repo: %w", err)
 			}
-			_ = pendingKeyPath // TODO: associate key with baseurl repo
 			state.AddRepo(repoPath)
 			pendingKeyPath = ""
 			reposAdded = true
