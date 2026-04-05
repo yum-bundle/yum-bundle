@@ -66,6 +66,15 @@ func Parse(filePath string) ([]Entry, error) {
 		if strings.HasPrefix(line, "#") {
 			continue
 		}
+		// Strip inline comment: everything from the first " #" to end of line.
+		// Space-hash is unambiguous since # does not appear in package names,
+		// URLs, COPR identifiers, or any other directive argument.
+		if idx := strings.Index(line, " #"); idx >= 0 {
+			line = strings.TrimSpace(line[:idx])
+		}
+		if line == "" {
+			continue
+		}
 
 		entry, err := parseLine(line, lineNum, original)
 		if err != nil {

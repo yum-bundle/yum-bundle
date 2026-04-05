@@ -127,9 +127,13 @@ rpm https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm
 ## Comments
 
 ```
-# This is a comment
-yum vim  # inline comments are not supported — entire line must start with #
+# This is a full-line comment
+yum bat          # inline comment — everything from " #" to end of line is ignored
+yum ripgrep      # fast grep alternative (binary: rg)
+epel             # enable EPEL
 ```
+
+Both full-line comments (`#` at the start) and inline comments (` #` after a directive argument) are supported. The inline delimiter is a space followed by `#`.
 
 ## Complete Example
 

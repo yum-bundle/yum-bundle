@@ -78,6 +78,38 @@ yum curl
 		}
 	})
 
+	t.Run("inline comments are stripped", func(t *testing.T) {
+		content := `yum bat          # cat with syntax highlighting
+yum ripgrep      # fast grep alternative (binary: rg)
+key https://example.com/gpg.key  # import signing key
+repo https://example.com/my.repo # nightly builds
+baseurl https://example.com/el9/ # custom repo
+copr atim/lazygit                # terminal UI for git
+epel                             # enable EPEL
+module nodejs:18                 # LTS stream
+rpm https://example.com/pkg.rpm  # bootstrap rpm
+group "Development Tools"        # compiler toolchain
+`
+		path := writeTempYumfile(t, content)
+		entries, err := yumfile.Parse(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(entries) != 10 {
+			t.Fatalf("expected 10 entries, got %d", len(entries))
+		}
+		assertEntry(t, entries[0], yumfile.EntryTypeYum, "bat")
+		assertEntry(t, entries[1], yumfile.EntryTypeYum, "ripgrep")
+		assertEntry(t, entries[2], yumfile.EntryTypeKey, "https://example.com/gpg.key")
+		assertEntry(t, entries[3], yumfile.EntryTypeRepo, "https://example.com/my.repo")
+		assertEntry(t, entries[4], yumfile.EntryTypeBaseurl, "https://example.com/el9/")
+		assertEntry(t, entries[5], yumfile.EntryTypeCopr, "atim/lazygit")
+		assertEntry(t, entries[6], yumfile.EntryTypeEPEL, "")
+		assertEntry(t, entries[7], yumfile.EntryTypeModule, "nodejs:18")
+		assertEntry(t, entries[8], yumfile.EntryTypeRPM, "https://example.com/pkg.rpm")
+		assertEntry(t, entries[9], yumfile.EntryTypeGroup, "Development Tools")
+	})
+
 	t.Run("returns error on unknown directive", func(t *testing.T) {
 		content := "unknown foo\n"
 		path := writeTempYumfile(t, content)
