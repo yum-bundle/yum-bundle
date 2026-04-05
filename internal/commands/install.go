@@ -75,7 +75,7 @@ func runInstall(_ *cobra.Command, _ []string) error {
 	for _, entry := range entries {
 		switch entry.Type {
 		case yumfile.EntryTypeKey:
-			keyPath, err := mgr.ImportGPGKey(entry.Value)
+			keyPath, err := mgr.ImportGPGKey(entry.Value, entry.ChecksumAlgo, entry.Checksum)
 			if err != nil {
 				return fmt.Errorf("failed to import GPG key: %w", err)
 			}
@@ -83,7 +83,7 @@ func runInstall(_ *cobra.Command, _ []string) error {
 			state.AddKey(keyPath)
 
 		case yumfile.EntryTypeRepo:
-			repoPath, err := mgr.AddRepoFile(entry.Value)
+			repoPath, err := mgr.AddRepoFile(entry.Value, entry.ChecksumAlgo, entry.Checksum)
 			if err != nil {
 				return fmt.Errorf("failed to add repo: %w", err)
 			}
@@ -193,7 +193,7 @@ func runInstall(_ *cobra.Command, _ []string) error {
 	// Install RPMs from URLs
 	for _, entry := range entries {
 		if entry.Type == yumfile.EntryTypeRPM {
-			if err := mgr.InstallRPMFromURL(entry.Value); err != nil {
+			if err := mgr.InstallRPMFromURL(entry.Value, entry.ChecksumAlgo, entry.Checksum); err != nil {
 				return fmt.Errorf("failed to install RPM from URL %s: %w", entry.Value, err)
 			}
 		}

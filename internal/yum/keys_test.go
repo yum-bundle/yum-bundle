@@ -28,7 +28,7 @@ func TestImportGPGKey_DownloadsAndImports(t *testing.T) {
 	m := keyManager(t, "-----BEGIN PGP PUBLIC KEY BLOCK-----\nFAKEKEY\n-----END PGP PUBLIC KEY BLOCK-----\n")
 	m.Executor = mock
 
-	keyPath, err := m.ImportGPGKey("https://example.com/RPM-GPG-KEY-example")
+	keyPath, err := m.ImportGPGKey("https://example.com/RPM-GPG-KEY-example", "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -46,11 +46,11 @@ func TestImportGPGKey_Idempotent(t *testing.T) {
 	m.Executor = mock
 
 	url := "https://example.com/RPM-GPG-KEY-example"
-	path1, err := m.ImportGPGKey(url)
+	path1, err := m.ImportGPGKey(url, "", "")
 	if err != nil {
 		t.Fatalf("first call: %v", err)
 	}
-	path2, err := m.ImportGPGKey(url)
+	path2, err := m.ImportGPGKey(url, "", "")
 	if err != nil {
 		t.Fatalf("second call: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestImportGPGKey_Idempotent(t *testing.T) {
 
 func TestImportGPGKey_RejectsHTTP(t *testing.T) {
 	m := testManager(t)
-	_, err := m.ImportGPGKey("http://example.com/key.pub")
+	_, err := m.ImportGPGKey("http://example.com/key.pub", "", "")
 	if err == nil {
 		t.Error("expected error for http:// URL")
 	}
@@ -79,7 +79,7 @@ func TestImportGPGKey_RejectsHTTP(t *testing.T) {
 
 func TestImportGPGKey_RejectsFileURL(t *testing.T) {
 	m := testManager(t)
-	_, err := m.ImportGPGKey("file:///etc/pki/rpm-gpg/key")
+	_, err := m.ImportGPGKey("file:///etc/pki/rpm-gpg/key", "", "")
 	if err == nil {
 		t.Error("expected error for file:// URL")
 	}
@@ -109,11 +109,20 @@ func TestImportGPGKey_CreatesKeyDir(t *testing.T) {
 	// Ensure key dir doesn't exist yet
 	os.RemoveAll(m.KeyDir)
 
-	_, err := m.ImportGPGKey("https://example.com/key.pub")
+	_, err := m.ImportGPGKey("https://example.com/key.pub", "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, statErr := os.Stat(m.KeyDir); statErr != nil {
 		t.Errorf("key directory not created: %v", statErr)
+	}
+}
+
+func TestImportGPGKey_WrongChecksumReturnsError(t *testing.T) {
+	m := keyManager(t, "FAKEKEYDATA")
+
+	_, err := m.ImportGPGKey("https://example.com/key.pub", "sha256", "0000000000000000000000000000000000000000000000000000000000000000")
+	if err == nil {
+		t.Error("expected error for wrong checksum")
 	}
 }

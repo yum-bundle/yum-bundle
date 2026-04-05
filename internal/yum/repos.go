@@ -37,7 +37,8 @@ func validateRepoURL(repoURL string) error {
 // AddRepoFile downloads a .repo file from the given HTTPS URL and writes it to
 // /etc/yum.repos.d/ under a yum-bundle-managed filename. Returns the path of
 // the written file. Idempotent: if the file already exists it is not re-downloaded.
-func (m *YumManager) AddRepoFile(repoURL string) (string, error) {
+// checksumAlgo and checksum are optional: pass empty strings to skip verification.
+func (m *YumManager) AddRepoFile(repoURL, checksumAlgo, checksum string) (string, error) {
 	if err := validateRepoURL(repoURL); err != nil {
 		return "", err
 	}
@@ -69,6 +70,10 @@ func (m *YumManager) AddRepoFile(repoURL string) (string, error) {
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("read repo file: %w", err)
+	}
+
+	if err := verifyChecksum(data, checksumAlgo, checksum); err != nil {
+		return "", fmt.Errorf("repo file checksum verification failed: %w", err)
 	}
 
 	if err := os.WriteFile(destPath, data, 0644); err != nil { //nolint:gosec // .repo files must be world-readable for dnf/yum

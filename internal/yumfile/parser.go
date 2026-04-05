@@ -35,10 +35,12 @@ const (
 // the directive type, its argument value, the source line number, and
 // the original unparsed line text.
 type Entry struct {
-	Type     EntryType
-	Value    string
-	LineNum  int
-	Original string
+	Type         EntryType
+	Value        string
+	LineNum      int
+	Original     string
+	ChecksumAlgo string // "sha256", "sha512", or "" for none
+	Checksum     string // lowercase hex string, or "" for none
 }
 
 // Parse reads a Yumfile at the given path and returns the list of entries.
@@ -108,8 +110,6 @@ func parseLine(line string, lineNum int, original string) (Entry, error) {
 	}
 
 	directive := parts[0]
-	value := strings.Join(parts[1:], " ")
-	value = unquote(value)
 
 	var entryType EntryType
 	switch directive {
@@ -133,11 +133,39 @@ func parseLine(line string, lineNum int, original string) (Entry, error) {
 		return Entry{}, fmt.Errorf("unknown directive: %s", directive)
 	}
 
+	// For key, repo, and rpm directives, check for an optional checksum suffix:
+	//   <directive> <url> sha256=<hex>
+	//   <directive> <url> sha512=<hex>
+	var checksumAlgo, checksum string
+	valueParts := parts[1:]
+	if (entryType == EntryTypeKey || entryType == EntryTypeRepo || entryType == EntryTypeRPM) && len(valueParts) >= 2 {
+		last := valueParts[len(valueParts)-1]
+		lower := strings.ToLower(last)
+		var algo, hex string
+		if after, ok := strings.CutPrefix(lower, "sha256="); ok {
+			algo = "sha256"
+			hex = after
+		} else if after, ok := strings.CutPrefix(lower, "sha512="); ok {
+			algo = "sha512"
+			hex = after
+		}
+		if algo != "" {
+			checksumAlgo = algo
+			checksum = hex
+			valueParts = valueParts[:len(valueParts)-1]
+		}
+	}
+
+	value := strings.Join(valueParts, " ")
+	value = unquote(value)
+
 	return Entry{
-		Type:     entryType,
-		Value:    value,
-		LineNum:  lineNum,
-		Original: original,
+		Type:         entryType,
+		Value:        value,
+		LineNum:      lineNum,
+		Original:     original,
+		ChecksumAlgo: checksumAlgo,
+		Checksum:     checksum,
 	}, nil
 }
 

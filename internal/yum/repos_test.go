@@ -26,7 +26,7 @@ func repoManager(t *testing.T) *yum.YumManager {
 
 func TestAddRepoFile_Downloads(t *testing.T) {
 	m := repoManager(t)
-	path, err := m.AddRepoFile("https://download.docker.com/linux/centos/docker-ce.repo")
+	path, err := m.AddRepoFile("https://download.docker.com/linux/centos/docker-ce.repo", "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -41,11 +41,11 @@ func TestAddRepoFile_Downloads(t *testing.T) {
 
 func TestAddRepoFile_Idempotent(t *testing.T) {
 	m := repoManager(t)
-	path1, err := m.AddRepoFile("https://download.docker.com/linux/centos/docker-ce.repo")
+	path1, err := m.AddRepoFile("https://download.docker.com/linux/centos/docker-ce.repo", "", "")
 	if err != nil {
 		t.Fatalf("first call: %v", err)
 	}
-	path2, err := m.AddRepoFile("https://download.docker.com/linux/centos/docker-ce.repo")
+	path2, err := m.AddRepoFile("https://download.docker.com/linux/centos/docker-ce.repo", "", "")
 	if err != nil {
 		t.Fatalf("second call: %v", err)
 	}
@@ -56,9 +56,17 @@ func TestAddRepoFile_Idempotent(t *testing.T) {
 
 func TestAddRepoFile_RejectsHTTP(t *testing.T) {
 	m := testManager(t)
-	_, err := m.AddRepoFile("http://example.com/my.repo")
+	_, err := m.AddRepoFile("http://example.com/my.repo", "", "")
 	if err == nil {
 		t.Error("expected error for http:// URL")
+	}
+}
+
+func TestAddRepoFile_WrongChecksumReturnsError(t *testing.T) {
+	m := repoManager(t)
+	_, err := m.AddRepoFile("https://download.docker.com/linux/centos/docker-ce.repo", "sha256", "0000000000000000000000000000000000000000000000000000000000000000")
+	if err == nil {
+		t.Error("expected error for wrong checksum")
 	}
 }
 
