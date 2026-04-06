@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,24 +13,10 @@ import (
 	"strings"
 )
 
-// validateRepoURL ensures the URL uses https://. Rejects http://, file://, and other schemes.
+// validateRepoURL ensures the URL uses https://.
 func validateRepoURL(repoURL string) error {
-	u, err := url.Parse(repoURL)
-	if err != nil {
-		return fmt.Errorf("invalid URL: %w", err)
-	}
-	switch u.Scheme {
-	case "https":
-		return nil
-	case "http":
-		return fmt.Errorf("URL must use https://, not http:// (rejected for security)")
-	case "file":
-		return fmt.Errorf("file:// URLs are not allowed (rejected for security)")
-	case "":
-		return fmt.Errorf("invalid URL: missing scheme (use https://)")
-	default:
-		return fmt.Errorf("URL scheme %q not allowed; use https://", u.Scheme)
-	}
+	_, err := validateHTTPSURL(repoURL, "URL")
+	return err
 }
 
 // AddRepoFile downloads a .repo file from the given HTTPS URL and writes it to

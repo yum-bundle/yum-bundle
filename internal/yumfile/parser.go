@@ -220,17 +220,17 @@ func ExtractPkgName(spec string) string {
 	// (to avoid stripping the trailing part of names like "python3-pip")
 	// RPM naming: package name uses hyphens, version is numeric.
 	// We split on the last hyphen followed by a digit.
-	if idx := lastHyphenBeforeVersion(spec); idx > 0 {
+	if idx := LastHyphenBeforeVersion(spec); idx > 0 {
 		return spec[:idx]
 	}
 	return spec
 }
 
-// lastHyphenBeforeVersion finds the last hyphen in s that is followed by a digit,
+// LastHyphenBeforeVersion finds the last hyphen in s that is followed by a digit,
 // returning its index, or -1 if none found.
 // This distinguishes "nodejs-18.0.0" (name=nodejs, version=18.0.0) from
 // "python3-pip" (name=python3-pip, no version).
-func lastHyphenBeforeVersion(s string) int {
+func LastHyphenBeforeVersion(s string) int {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == '-' && i+1 < len(s) && s[i+1] >= '0' && s[i+1] <= '9' {
 			return i

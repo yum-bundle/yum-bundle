@@ -46,53 +46,43 @@ func (m *YumManager) isFedora() bool {
 	return m.isDistroID("fedora")
 }
 
-// IsRHELFamily returns true when the distro is a RHEL-family system
-// (RHEL, CentOS, Rocky, AlmaLinux, Oracle, etc.).
-func (m *YumManager) IsRHELFamily() bool {
+// parseOsRelease reads and parses OsReleasePath into a key→value map.
+// Values have surrounding double-quotes stripped.
+// Returns an empty map on read error.
+func (m *YumManager) parseOsRelease() map[string]string {
 	data, err := os.ReadFile(m.OsReleasePath)
 	if err != nil {
-		return false
+		return map[string]string{}
 	}
+	fields := make(map[string]string)
 	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		key, val, ok := strings.Cut(line, "=")
 		if !ok {
 			continue
 		}
-		val = strings.Trim(val, "\"")
-		if key == "ID_LIKE" {
-			for _, word := range strings.Fields(val) {
-				if word == "rhel" || word == "centos" || word == "fedora" {
-					return true
-				}
-			}
+		fields[key] = strings.Trim(val, "\"")
+	}
+	return fields
+}
+
+// IsRHELFamily returns true when the distro is a RHEL-family system
+// (RHEL, CentOS, Rocky, AlmaLinux, Oracle, etc.).
+func (m *YumManager) IsRHELFamily() bool {
+	fields := m.parseOsRelease()
+	for _, word := range strings.Fields(fields["ID_LIKE"]) {
+		if word == "rhel" || word == "centos" || word == "fedora" {
+			return true
 		}
-		if key == "ID" {
-			switch val {
-			case "rhel", "centos", "rocky", "almalinux", "ol":
-				return true
-			}
-		}
+	}
+	switch fields["ID"] {
+	case "rhel", "centos", "rocky", "almalinux", "ol":
+		return true
 	}
 	return false
 }
 
 // isDistroID checks if the current distro's ID field matches the given value.
 func (m *YumManager) isDistroID(id string) bool {
-	data, err := os.ReadFile(m.OsReleasePath)
-	if err != nil {
-		return false
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		key, val, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		val = strings.Trim(val, "\"")
-		if key == "ID" && val == id {
-			return true
-		}
-	}
-	return false
+	return m.parseOsRelease()["ID"] == id
 }

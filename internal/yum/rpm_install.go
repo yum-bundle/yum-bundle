@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/yum-bundle/yum-bundle/internal/yumfile"
 )
 
 // InstallRPMFromURL installs an RPM package directly from an HTTPS URL.
@@ -88,21 +90,9 @@ func (m *YumManager) InstallRPMFromURL(rpmURL, checksumAlgo, checksum string) er
 
 // validateRPMURL ensures the URL uses https:// and ends with .rpm.
 func validateRPMURL(rpmURL string) error {
-	u, err := url.Parse(rpmURL)
+	u, err := validateHTTPSURL(rpmURL, "RPM URL")
 	if err != nil {
-		return fmt.Errorf("invalid RPM URL: %w", err)
-	}
-	switch u.Scheme {
-	case "https":
-		// ok
-	case "http":
-		return fmt.Errorf("RPM URL must use https://, not http:// (rejected for security)")
-	case "file":
-		return fmt.Errorf("file:// RPM URLs are not allowed (rejected for security)")
-	case "":
-		return fmt.Errorf("invalid RPM URL: missing scheme (use https://)")
-	default:
-		return fmt.Errorf("RPM URL scheme %q not allowed; use https://", u.Scheme)
+		return err
 	}
 	if !strings.HasSuffix(u.Path, ".rpm") {
 		return fmt.Errorf("RPM URL must end with .rpm")
@@ -134,10 +124,10 @@ func rpmNameFromURL(rpmURL string) string {
 
 	// Now name is "name-version-release"
 	// Strip -release (last -NNN component with a digit)
-	if idx := lastHyphenBeforeVersion(name); idx > 0 {
+	if idx := yumfile.LastHyphenBeforeVersion(name); idx > 0 {
 		name = name[:idx]
 		// Strip -version (another -NNN component)
-		if idx2 := lastHyphenBeforeVersion(name); idx2 > 0 {
+		if idx2 := yumfile.LastHyphenBeforeVersion(name); idx2 > 0 {
 			name = name[:idx2]
 		}
 	}

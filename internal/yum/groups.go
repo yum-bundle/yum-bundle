@@ -29,10 +29,7 @@ func (m *YumManager) IsGroupInstalled(groupName string) (bool, error) {
 	if err != nil {
 		return false, nil
 	}
-	lines, err := splitLines(string(output))
-	if err != nil {
-		return false, err
-	}
+	lines := splitLines(string(output))
 	lower := strings.ToLower(groupName)
 	for _, line := range lines {
 		if strings.ToLower(strings.TrimSpace(line)) == lower {

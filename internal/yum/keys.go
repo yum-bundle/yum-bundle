@@ -5,29 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 )
 
 // validateKeyURL ensures the key URL uses https://.
 func validateKeyURL(keyURL string) error {
-	u, err := url.Parse(keyURL)
-	if err != nil {
-		return fmt.Errorf("invalid key URL: %w", err)
-	}
-	switch u.Scheme {
-	case "https":
-		return nil
-	case "http":
-		return fmt.Errorf("key URL must use https://, not http:// (rejected for security)")
-	case "file":
-		return fmt.Errorf("file:// key URLs are not allowed (rejected for security)")
-	case "":
-		return fmt.Errorf("invalid key URL: missing scheme (use https://)")
-	default:
-		return fmt.Errorf("key URL scheme %q not allowed; use https://", u.Scheme)
-	}
+	_, err := validateHTTPSURL(keyURL, "key URL")
+	return err
 }
 
 // KeyPathForURL returns the path that ImportGPGKey would store the key for the given URL.

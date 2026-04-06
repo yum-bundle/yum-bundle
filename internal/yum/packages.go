@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/yum-bundle/yum-bundle/internal/yumfile"
 )
 
 // packageNameRE validates RPM package names: must start with an alphanumeric or
@@ -15,37 +17,11 @@ var packageNameRE = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9._+\-]*$`)
 // Version-pinned specs ("name = version", "name-version") are split and only
 // the name portion is validated.
 func validatePackageName(spec string) error {
-	name := extractNameForValidation(spec)
+	name := yumfile.ExtractPkgName(spec)
 	if !packageNameRE.MatchString(name) {
 		return fmt.Errorf("invalid package name %q: must match RPM naming convention", name)
 	}
 	return nil
-}
-
-func extractNameForValidation(spec string) string {
-	// "name = version" format
-	if idx := strings.Index(spec, " = "); idx > 0 {
-		return strings.TrimSpace(spec[:idx])
-	}
-	// "name=version" compact form
-	if idx := strings.Index(spec, "="); idx > 0 {
-		return spec[:idx]
-	}
-	// "name-version" where version starts with digit
-	if idx := lastHyphenBeforeVersion(spec); idx > 0 {
-		return spec[:idx]
-	}
-	return spec
-}
-
-// lastHyphenBeforeVersion finds the last hyphen followed by a digit.
-func lastHyphenBeforeVersion(s string) int {
-	for i := len(s) - 1; i >= 0; i-- {
-		if s[i] == '-' && i+1 < len(s) && s[i+1] >= '0' && s[i+1] <= '9' {
-			return i
-		}
-	}
-	return -1
 }
 
 // IsPackageInstalled checks if a package is installed on the system via rpm -q.
@@ -67,7 +43,7 @@ func (m *YumManager) InstallPackage(spec string, excludes []string) error {
 	if spec == "" {
 		return fmt.Errorf("package name cannot be empty")
 	}
-	if err := validatePackageName(extractNameForValidation(spec)); err != nil {
+	if err := validatePackageName(spec); err != nil {
 		return err
 	}
 	fmt.Printf("Installing package: %s\n", spec)
@@ -187,10 +163,7 @@ func (m *YumManager) GetAllInstalledPackages() ([]string, error) {
 		return nil, wrapCommandError(err, "list installed packages", "")
 	}
 
-	lines, err := splitLines(string(output))
-	if err != nil {
-		return nil, fmt.Errorf("parsing installed packages output: %w", err)
-	}
+	lines := splitLines(string(output))
 
 	var packages []string
 	for _, line := range lines {
@@ -204,11 +177,11 @@ func (m *YumManager) GetAllInstalledPackages() ([]string, error) {
 }
 
 // splitLines splits a string by newlines.
-func splitLines(s string) ([]string, error) {
+func splitLines(s string) []string {
 	var lines []string
 	sc := bufio.NewScanner(strings.NewReader(s))
 	for sc.Scan() {
 		lines = append(lines, sc.Text())
 	}
-	return lines, sc.Err()
+	return lines
 }
