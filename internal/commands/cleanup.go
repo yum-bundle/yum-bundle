@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/yum-bundle/yum-bundle/internal/yum"
 	"github.com/yum-bundle/yum-bundle/internal/yumfile"
 )
 
@@ -60,34 +59,24 @@ func doCleanup(force, zap, autoremove bool) error {
 	aptfilePackages := extractPackageNames(entries)
 	aptfileGroups := extractGroupNames(entries)
 
-	var packagesToRemove []string
-	var cachedState *yum.State
+	state, err := mgr.LoadState()
+	if err != nil {
+		return fmt.Errorf("failed to load state: %w", err)
+	}
 
+	var packagesToRemove []string
 	if zap {
 		packagesToRemove, err = getPackagesToZap(aptfilePackages)
 		if err != nil {
 			return err
 		}
 	} else {
-		packagesToRemove, cachedState, err = getPackagesToCleanup(aptfilePackages)
-		if err != nil {
-			return err
-		}
+		packagesToRemove = state.GetPackagesNotIn(aptfilePackages)
 	}
 
 	// Groups are only cleaned up via state (not --zap mode).
 	var groupsToRemove []string
 	if !zap {
-		var state *yum.State
-		if cachedState != nil {
-			state = cachedState
-		} else {
-			state, err = mgr.LoadState()
-			if err != nil {
-				return fmt.Errorf("failed to load state: %w", err)
-			}
-			cachedState = state
-		}
 		groupsToRemove = state.GetGroupsNotIn(aptfileGroups)
 	}
 
@@ -133,16 +122,6 @@ func doCleanup(force, zap, autoremove bool) error {
 		if strings.TrimSpace(confirmation) != "yes" {
 			fmt.Println("Aborted.")
 			return nil
-		}
-	}
-
-	var state *yum.State
-	if cachedState != nil {
-		state = cachedState
-	} else {
-		state, err = mgr.LoadState()
-		if err != nil {
-			return fmt.Errorf("failed to load state: %w", err)
 		}
 	}
 
@@ -212,15 +191,6 @@ func extractPackageNames(entries []yumfile.Entry) []string {
 		}
 	}
 	return names
-}
-
-// getPackagesToCleanup returns packages tracked by yum-bundle but no longer in Yumfile.
-func getPackagesToCleanup(yumfilePackages []string) ([]string, *yum.State, error) {
-	state, err := mgr.LoadState()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load state: %w", err)
-	}
-	return state.GetPackagesNotIn(yumfilePackages), state, nil
 }
 
 // getPackagesToZap returns ALL installed packages not in Yumfile.

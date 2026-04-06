@@ -28,7 +28,7 @@ func init() {
 	rootCmd.AddCommand(syncCmd)
 }
 
-func runSync(cmd *cobra.Command, args []string) error {
+func runSync(_ *cobra.Command, _ []string) error {
 	if !syncDryRun {
 		if err := checkRoot(); err != nil {
 			return err
@@ -39,10 +39,16 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return runSyncDryRun()
 	}
 
-	if err := runInstall(cmd, args); err != nil {
+	fmt.Printf("Reading Yumfile from: %s\n", yumfilePath)
+	entries, err := yumfile.Parse(yumfilePath)
+	if err != nil {
+		return fmt.Errorf("failed to parse Yumfile: %w", err)
+	}
+	fmt.Printf("Found %d entries in Yumfile\n", len(entries))
+
+	if err := doInstall(entries); err != nil {
 		return err
 	}
-
 	return doCleanup(true, false, syncAutoremove)
 }
 

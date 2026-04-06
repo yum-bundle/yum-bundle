@@ -2,7 +2,7 @@ package yum
 
 import (
 	"bufio"
-	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -29,9 +29,7 @@ func (m *YumManager) AddRepoFile(repoURL, checksumAlgo, checksum string) (string
 	}
 	fmt.Printf("Adding repo file from: %s\n", repoURL)
 
-	hash := sha256.Sum256([]byte(repoURL))
-	filename := fmt.Sprintf("%s%x.repo", m.ReposPrefix, hash[:8])
-	destPath := filepath.Join(m.ReposDir, filename)
+	destPath := filepath.Join(m.ReposDir, hashStem(m.ReposPrefix, repoURL)+".repo")
 
 	if _, err := os.Stat(destPath); err == nil {
 		fmt.Printf("✓ Repo file already present: %s\n", destPath)
@@ -94,10 +92,8 @@ func (m *YumManager) AddBaseurlRepo(baseurlValue string, opts *RepoFileOptions) 
 		opts = &RepoFileOptions{}
 	}
 
-	hash := sha256.Sum256([]byte(baseurlValue))
-	repoID := fmt.Sprintf("%s%x", m.ReposPrefix, hash[:8])
-	filename := repoID + ".repo"
-	destPath := filepath.Join(m.ReposDir, filename)
+	repoID := hashStem(m.ReposPrefix, baseurlValue)
+	destPath := filepath.Join(m.ReposDir, repoID+".repo")
 
 	if _, err := os.Stat(destPath); err == nil {
 		fmt.Printf("✓ Repo already configured: %s\n", destPath)
@@ -154,7 +150,7 @@ func (m *YumManager) AddBaseurlRepo(baseurlValue string, opts *RepoFileOptions) 
 
 // RemoveRepoFile removes a managed .repo file.
 func (m *YumManager) RemoveRepoFile(repoPath string) error {
-	if err := os.Remove(repoPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(repoPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("remove repo file: %w", err)
 	}
 	return nil
@@ -275,7 +271,5 @@ func readRepoFile(path string) ([]RepoEntry, error) {
 
 // RepoFilePathForURL returns the path that AddRepoFile would use for the given URL.
 func (m *YumManager) RepoFilePathForURL(repoURL string) string {
-	hash := sha256.Sum256([]byte(repoURL))
-	filename := fmt.Sprintf("%s%x.repo", m.ReposPrefix, hash[:8])
-	return filepath.Join(m.ReposDir, filename)
+	return filepath.Join(m.ReposDir, hashStem(m.ReposPrefix, repoURL)+".repo")
 }

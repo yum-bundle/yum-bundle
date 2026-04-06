@@ -1,9 +1,18 @@
 package yum
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"net/url"
 )
+
+// hashStem returns "prefix + first-8-bytes-of-sha256(input)" — the base name
+// (without file extension) for a yum-bundle managed file derived from input.
+// Callers append the appropriate extension (e.g. ".repo", ".key").
+func hashStem(prefix, input string) string {
+	hash := sha256.Sum256([]byte(input))
+	return fmt.Sprintf("%s%x", prefix, hash[:8])
+}
 
 // validateHTTPSURL parses rawURL and returns an error if it does not use https://.
 // kind is a human-readable label used in error messages (e.g. "URL", "key URL", "RPM URL").

@@ -34,32 +34,15 @@ func writeTempDoctorYumfile(t *testing.T, content string) string {
 	return path
 }
 
-// makePathWith creates a temp dir containing fake executables for the given
-// binary names (zero-byte files with execute permission) and returns the dir.
-// The caller should prepend this dir to PATH.
-func makePathWith(t *testing.T, binaries ...string) string {
-	t.Helper()
-	dir := t.TempDir()
-	for _, name := range binaries {
-		p := filepath.Join(dir, name)
-		if err := os.WriteFile(p, []byte("#!/bin/sh\n"), 0755); err != nil { //nolint:gosec
-			t.Fatalf("create fake binary %s: %v", name, err)
-		}
-	}
-	return dir
-}
-
 // setupDoctorTest sets up a doctor test environment: writes a Yumfile, sets
-// yumfilePath, configures mgr with a temp state dir, and manipulates PATH so
-// that only the named binaries (from binaries) are found via exec.LookPath.
+// yumfilePath, and configures mgr with a temp state dir and a LookPath stub
+// that reports only the named binaries as available.
 // It restores all globals on cleanup.
 func setupDoctorTest(t *testing.T, yumfileContent string, binaries []string) *cobra.Command {
 	t.Helper()
 
-	// Write the Yumfile
 	path := writeTempDoctorYumfile(t, yumfileContent)
 
-	// Save and restore package-level globals
 	origYumfilePath := yumfilePath
 	origMgr := mgr
 	origDoctorYumfileOnly := doctorYumfileOnly
@@ -73,8 +56,11 @@ func setupDoctorTest(t *testing.T, yumfileContent string, binaries []string) *co
 	yumfilePath = path
 	doctorYumfileOnly = false
 
-	// Set up a fake mgr with temp state dir
 	stateDir := t.TempDir()
+	available := make(map[string]bool, len(binaries))
+	for _, name := range binaries {
+		available[name] = true
+	}
 	mgr = &yum.YumManager{
 		Executor:      testutil.NewMockExecutor(),
 		ReposDir:      filepath.Join(stateDir, "yum.repos.d"),
@@ -83,20 +69,15 @@ func setupDoctorTest(t *testing.T, yumfileContent string, binaries []string) *co
 		KeyPrefix:     "yum-bundle-",
 		OsReleasePath: "/dev/null",
 		StatePath:     func() string { return filepath.Join(stateDir, "state.json") },
-		LookPath:      func(_ string) (string, error) { return "", os.ErrNotExist }, // unused; exec.LookPath is used in doctor.go
+		LookPath: func(name string) (string, error) {
+			if available[name] {
+				return "/usr/bin/" + name, nil
+			}
+			return "", os.ErrNotExist
+		},
 	}
 
-	// Manipulate PATH to control which binaries are visible to exec.LookPath
-	fakeDir := makePathWith(t, binaries...)
-	origPath := os.Getenv("PATH")
-	t.Cleanup(func() { os.Setenv("PATH", origPath) }) //nolint:errcheck
-	// Prepend fakeDir and use only it (no real /usr/bin etc.) so we have
-	// deterministic control.  We keep /dev/null as the rest so no real
-	// binaries leak through.
-	os.Setenv("PATH", fakeDir) //nolint:errcheck
-
-	cmd := newDoctorCmd()
-	return cmd
+	return newDoctorCmd()
 }
 
 func doctorOutput(cmd *cobra.Command) (stdout, stderr string) {

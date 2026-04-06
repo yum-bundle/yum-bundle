@@ -1,7 +1,7 @@
 package yum
 
 import (
-	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,9 +17,7 @@ func validateKeyURL(keyURL string) error {
 
 // KeyPathForURL returns the path that ImportGPGKey would store the key for the given URL.
 func (m *YumManager) KeyPathForURL(keyURL string) string {
-	hash := sha256.Sum256([]byte(keyURL))
-	filename := fmt.Sprintf("%s%x.key", m.KeyPrefix, hash[:8])
-	return filepath.Join(m.KeyDir, filename)
+	return filepath.Join(m.KeyDir, hashStem(m.KeyPrefix, keyURL)+".key")
 }
 
 // ImportGPGKey downloads a GPG key from an HTTPS URL, saves it to KeyDir, and
@@ -35,7 +33,7 @@ func (m *YumManager) ImportGPGKey(keyURL, checksumAlgo, checksum string) (string
 
 	keyPath := m.KeyPathForURL(keyURL)
 
-	if _, err := os.Stat(keyPath); os.IsNotExist(err) {
+	if _, err := os.Stat(keyPath); errors.Is(err, os.ErrNotExist) {
 		// Need to download
 		if err := os.MkdirAll(m.KeyDir, 0755); err != nil {
 			return "", fmt.Errorf("create key directory: %w", err)
@@ -79,7 +77,7 @@ func (m *YumManager) ImportGPGKey(keyURL, checksumAlgo, checksum string) (string
 
 // RemoveGPGKey removes a saved GPG key file.
 func (m *YumManager) RemoveGPGKey(keyPath string) error {
-	if err := os.Remove(keyPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(keyPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("remove GPG key: %w", err)
 	}
 	return nil

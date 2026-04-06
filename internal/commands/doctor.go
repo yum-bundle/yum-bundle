@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -70,10 +69,10 @@ func runDoctor(cmd *cobra.Command, _ []string) error {
 
 	// Check dnf availability
 	hasDNF := false
-	if _, err := exec.LookPath("dnf"); err == nil {
+	if _, err := mgr.LookPath("dnf"); err == nil {
 		hasDNF = true
 		fmt.Fprintln(w, "✓ dnf available")
-	} else if _, err := exec.LookPath("yum"); err == nil {
+	} else if _, err := mgr.LookPath("yum"); err == nil {
 		fmt.Fprintln(w, "✓ yum available (dnf not found)")
 	} else {
 		fmt.Fprintf(ew, "✗ neither dnf nor yum found on PATH\n")
@@ -92,7 +91,7 @@ func runDoctor(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Check rpm availability (needed for key import, package checks)
-	if _, err := exec.LookPath("rpm"); err != nil {
+	if _, err := mgr.LookPath("rpm"); err != nil {
 		fmt.Fprintf(ew, "✗ rpm not found on PATH\n")
 		failed = true
 	} else {

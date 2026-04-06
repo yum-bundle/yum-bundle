@@ -3,6 +3,7 @@ package yum
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -37,7 +38,7 @@ func (m *YumManager) EnableEPEL() error {
 // isEPELEnabled checks whether EPEL is already configured by looking for
 // /etc/yum.repos.d/epel.repo.
 func (m *YumManager) isEPELEnabled() bool {
-	_, err := os.Stat(m.ReposDir + "/epel.repo")
+	_, err := os.Stat(filepath.Join(m.ReposDir, "epel.repo"))
 	return err == nil
 }
 

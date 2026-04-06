@@ -10,26 +10,6 @@ import (
 	"github.com/yum-bundle/yum-bundle/internal/yum"
 )
 
-func testManager(t *testing.T) *yum.YumManager {
-	t.Helper()
-	dir := t.TempDir()
-	return &yum.YumManager{
-		Executor:      testutil.NewMockExecutor(),
-		ReposDir:      filepath.Join(dir, "yum.repos.d"),
-		ReposPrefix:   "yum-bundle-",
-		KeyDir:        filepath.Join(dir, "rpm-gpg"),
-		KeyPrefix:     "yum-bundle-",
-		OsReleasePath: "/dev/null",
-		StatePath:     func() string { return filepath.Join(dir, "state.json") },
-		LookPath: func(name string) (string, error) {
-			if name == "dnf" {
-				return "/usr/bin/dnf", nil
-			}
-			return "", os.ErrNotExist
-		},
-	}
-}
-
 func TestLoadState_NewWhenMissing(t *testing.T) {
 	m := testManager(t)
 	state, err := m.LoadState()

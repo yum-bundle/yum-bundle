@@ -45,20 +45,21 @@ func runInstall(_ *cobra.Command, _ []string) error {
 			return err
 		}
 	}
-
 	fmt.Printf("Reading Yumfile from: %s\n", yumfilePath)
-
 	entries, err := yumfile.Parse(yumfilePath)
 	if err != nil {
 		return fmt.Errorf("failed to parse Yumfile: %w", err)
 	}
-
 	fmt.Printf("Found %d entries in Yumfile\n", len(entries))
-
 	if installDryRun {
 		return runInstallDryRun(entries)
 	}
+	return doInstall(entries)
+}
 
+// doInstall performs the non-dry-run install workflow for the given entries.
+// Callers are responsible for root checks and dry-run branching.
+func doInstall(entries []yumfile.Entry) error {
 	state, err := mgr.LoadState()
 	if err != nil {
 		return fmt.Errorf("failed to load state: %w", err)
