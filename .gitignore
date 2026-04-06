@@ -8,3 +8,4 @@ coverage.html
 .envrc
 .nfpm-*.yaml
 .local/
+.claude/
