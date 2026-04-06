@@ -41,7 +41,7 @@ func getLockFilePath() string {
 func runLock(_ *cobra.Command, _ []string) error {
 	entries, err := yumfile.Parse(yumfilePath)
 	if err != nil {
-		return fmt.Errorf("failed to parse Yumfile: %w", err)
+		return fmt.Errorf("parse Yumfile: %w", err)
 	}
 
 	var packages []string
@@ -63,7 +63,7 @@ func runLock(_ *cobra.Command, _ []string) error {
 	}
 
 	if err := writeLockFileEntries(locked); err != nil {
-		return fmt.Errorf("failed to write lock file: %w", err)
+		return fmt.Errorf("write lock file: %w", err)
 	}
 	fmt.Printf("Wrote %d package versions to %s\n", len(locked), getLockFilePath())
 	return nil

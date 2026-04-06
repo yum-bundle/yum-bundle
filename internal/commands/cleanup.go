@@ -53,7 +53,7 @@ func doCleanup(force, zap, autoremove bool) error {
 
 	entries, err := yumfile.Parse(yumfilePath)
 	if err != nil {
-		return fmt.Errorf("failed to parse Yumfile: %w", err)
+		return fmt.Errorf("parse Yumfile: %w", err)
 	}
 
 	aptfilePackages := extractPackageNames(entries)
@@ -61,7 +61,7 @@ func doCleanup(force, zap, autoremove bool) error {
 
 	state, err := mgr.LoadState()
 	if err != nil {
-		return fmt.Errorf("failed to load state: %w", err)
+		return fmt.Errorf("load state: %w", err)
 	}
 
 	var packagesToRemove []string
@@ -117,7 +117,7 @@ func doCleanup(force, zap, autoremove bool) error {
 		reader := bufio.NewReader(os.Stdin)
 		confirmation, err := reader.ReadString('\n')
 		if err != nil {
-			return fmt.Errorf("failed to read confirmation: %w", err)
+			return fmt.Errorf("read confirmation: %w", err)
 		}
 		if strings.TrimSpace(confirmation) != "yes" {
 			fmt.Println("Aborted.")
@@ -129,7 +129,7 @@ func doCleanup(force, zap, autoremove bool) error {
 		fmt.Printf("Removing %d packages...\n", len(packagesToRemove))
 		for _, pkg := range packagesToRemove {
 			if err := mgr.RemovePackage(pkg); err != nil {
-				return fmt.Errorf("failed to remove package %s: %w", pkg, err)
+				return fmt.Errorf("remove package %s: %w", pkg, err)
 			}
 			state.RemovePackage(pkg)
 		}
@@ -140,7 +140,7 @@ func doCleanup(force, zap, autoremove bool) error {
 		fmt.Printf("Removing %d groups...\n", len(groupsToRemove))
 		for _, g := range groupsToRemove {
 			if err := mgr.RemoveGroup(g); err != nil {
-				return fmt.Errorf("failed to remove group %s: %w", g, err)
+				return fmt.Errorf("remove group %s: %w", g, err)
 			}
 			state.RemoveGroup(g)
 		}
@@ -148,12 +148,12 @@ func doCleanup(force, zap, autoremove bool) error {
 	}
 
 	if err := mgr.SaveState(state); err != nil {
-		return fmt.Errorf("failed to save state: %w", err)
+		return fmt.Errorf("save state: %w", err)
 	}
 
 	if autoremove {
 		if err := mgr.AutoRemove(); err != nil {
-			return fmt.Errorf("failed to autoremove: %w", err)
+			return fmt.Errorf("autoremove: %w", err)
 		}
 	}
 
@@ -197,7 +197,7 @@ func extractPackageNames(entries []yumfile.Entry) []string {
 func getPackagesToZap(yumfilePackages []string) ([]string, error) {
 	allInstalled, err := mgr.GetAllInstalledPackages()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get installed packages: %w", err)
+		return nil, fmt.Errorf("get installed packages: %w", err)
 	}
 
 	yumfileSet := make(map[string]bool)

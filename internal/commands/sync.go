@@ -42,7 +42,7 @@ func runSync(_ *cobra.Command, _ []string) error {
 	fmt.Printf("Reading Yumfile from: %s\n", yumfilePath)
 	entries, err := yumfile.Parse(yumfilePath)
 	if err != nil {
-		return fmt.Errorf("failed to parse Yumfile: %w", err)
+		return fmt.Errorf("parse Yumfile: %w", err)
 	}
 	fmt.Printf("Found %d entries in Yumfile\n", len(entries))
 
@@ -55,7 +55,7 @@ func runSync(_ *cobra.Command, _ []string) error {
 func runSyncDryRun() error {
 	entries, err := yumfile.Parse(yumfilePath)
 	if err != nil {
-		return fmt.Errorf("failed to parse Yumfile: %w", err)
+		return fmt.Errorf("parse Yumfile: %w", err)
 	}
 
 	fmt.Printf("Reading Yumfile from: %s (dry-run)\n", yumfilePath)

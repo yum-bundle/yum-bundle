@@ -37,7 +37,7 @@ type CheckResult struct {
 func doCheck(yumfilePath string) (ok bool, missing []string, entries []yumfile.Entry, err error) {
 	entries, err = yumfile.Parse(yumfilePath)
 	if err != nil {
-		return false, nil, nil, fmt.Errorf("failed to parse Yumfile: %w", err)
+		return false, nil, nil, fmt.Errorf("parse Yumfile: %w", err)
 	}
 
 	for _, entry := range entries {

@@ -48,7 +48,7 @@ func runInstall(_ *cobra.Command, _ []string) error {
 	fmt.Printf("Reading Yumfile from: %s\n", yumfilePath)
 	entries, err := yumfile.Parse(yumfilePath)
 	if err != nil {
-		return fmt.Errorf("failed to parse Yumfile: %w", err)
+		return fmt.Errorf("parse Yumfile: %w", err)
 	}
 	fmt.Printf("Found %d entries in Yumfile\n", len(entries))
 	if installDryRun {
@@ -62,11 +62,11 @@ func runInstall(_ *cobra.Command, _ []string) error {
 func doInstall(entries []yumfile.Entry) error {
 	state, err := mgr.LoadState()
 	if err != nil {
-		return fmt.Errorf("failed to load state: %w", err)
+		return fmt.Errorf("load state: %w", err)
 	}
 	defer func() {
 		if saveErr := mgr.SaveState(state); saveErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: failed to save state: %v\n", saveErr)
+			fmt.Fprintf(os.Stderr, "warning: save state: %v\n", saveErr)
 		}
 	}()
 
@@ -78,7 +78,7 @@ func doInstall(entries []yumfile.Entry) error {
 		case yumfile.EntryTypeKey:
 			keyPath, err := mgr.ImportGPGKey(entry.Value, entry.ChecksumAlgo, entry.Checksum)
 			if err != nil {
-				return fmt.Errorf("failed to import GPG key: %w", err)
+				return fmt.Errorf("import GPG key: %w", err)
 			}
 			pendingKeyPath = keyPath
 			state.AddKey(keyPath)
@@ -86,7 +86,7 @@ func doInstall(entries []yumfile.Entry) error {
 		case yumfile.EntryTypeRepo:
 			repoPath, err := mgr.AddRepoFile(entry.Value, entry.ChecksumAlgo, entry.Checksum)
 			if err != nil {
-				return fmt.Errorf("failed to add repo: %w", err)
+				return fmt.Errorf("add repo: %w", err)
 			}
 			state.AddRepo(repoPath)
 			pendingKeyPath = ""
@@ -99,7 +99,7 @@ func doInstall(entries []yumfile.Entry) error {
 			}
 			repoPath, err := mgr.AddBaseurlRepo(entry.Value, opts)
 			if err != nil {
-				return fmt.Errorf("failed to add baseurl repo: %w", err)
+				return fmt.Errorf("add baseurl repo: %w", err)
 			}
 			state.AddRepo(repoPath)
 			pendingKeyPath = ""
@@ -107,7 +107,7 @@ func doInstall(entries []yumfile.Entry) error {
 
 		case yumfile.EntryTypeCopr:
 			if err := mgr.EnableCOPR(entry.Value); err != nil {
-				return fmt.Errorf("failed to enable COPR %s: %w", entry.Value, err)
+				return fmt.Errorf("enable COPR %s: %w", entry.Value, err)
 			}
 			coprPath := mgr.CoprRepoPathFor(entry.Value)
 			state.AddRepo(coprPath)
@@ -115,20 +115,20 @@ func doInstall(entries []yumfile.Entry) error {
 
 		case yumfile.EntryTypeEPEL:
 			if err := mgr.EnableEPEL(); err != nil {
-				return fmt.Errorf("failed to enable EPEL: %w", err)
+				return fmt.Errorf("enable EPEL: %w", err)
 			}
 			reposAdded = true
 
 		case yumfile.EntryTypeModule:
 			if err := mgr.EnableModule(entry.Value); err != nil {
-				return fmt.Errorf("failed to enable module %s: %w", entry.Value, err)
+				return fmt.Errorf("enable module %s: %w", entry.Value, err)
 			}
 		}
 	}
 
 	if !noUpdate {
 		if err := mgr.MakecacheOrUpdate(); err != nil {
-			return fmt.Errorf("failed to update package metadata: %w", err)
+			return fmt.Errorf("update package metadata: %w", err)
 		}
 	} else if reposAdded {
 		fmt.Println("Warning: Repositories were added; run without --no-update to fetch package metadata.")
@@ -171,7 +171,7 @@ func doInstall(entries []yumfile.Entry) error {
 				continue
 			}
 			if err := mgr.InstallPackage(pkg, excludes); err != nil {
-				return fmt.Errorf("failed to install package %s: %w", pkg, err)
+				return fmt.Errorf("install package %s: %w", pkg, err)
 			}
 			state.AddPackage(pkgName)
 		}
@@ -193,7 +193,7 @@ func doInstall(entries []yumfile.Entry) error {
 				continue
 			}
 			if err := mgr.InstallGroup(entry.Value, excludes); err != nil {
-				return fmt.Errorf("failed to install group %s: %w", entry.Value, err)
+				return fmt.Errorf("install group %s: %w", entry.Value, err)
 			}
 			state.AddGroup(entry.Value)
 		}
@@ -203,14 +203,14 @@ func doInstall(entries []yumfile.Entry) error {
 	for _, entry := range entries {
 		if entry.Type == yumfile.EntryTypeRPM {
 			if err := mgr.InstallRPMFromURL(entry.Value, entry.ChecksumAlgo, entry.Checksum); err != nil {
-				return fmt.Errorf("failed to install RPM from URL %s: %w", entry.Value, err)
+				return fmt.Errorf("install RPM from URL %s: %w", entry.Value, err)
 			}
 		}
 	}
 
 	if installLock && len(packagesToInstall) > 0 {
 		if err := writeLockFileFromPackages(packagesToInstall); err != nil {
-			return fmt.Errorf("failed to write lock file: %w", err)
+			return fmt.Errorf("write lock file: %w", err)
 		}
 	}
 
@@ -228,7 +228,7 @@ func writeLockFileFromPackages(packages []string) error {
 func runInstallDryRun(entries []yumfile.Entry) error {
 	repos, err := mgr.ListCustomRepos()
 	if err != nil {
-		return fmt.Errorf("failed to list repos: %w", err)
+		return fmt.Errorf("list repos: %w", err)
 	}
 	repoSet := make(map[string]bool)
 	for _, r := range repos {

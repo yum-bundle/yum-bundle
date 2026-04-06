@@ -30,7 +30,7 @@ func runDump(cmd *cobra.Command, _ []string) error {
 	fmt.Fprintln(w, "# --- Packages ---")
 	packages, err := mgr.GetAllInstalledPackages()
 	if err != nil {
-		return fmt.Errorf("failed to list installed packages: %w", err)
+		return fmt.Errorf("list installed packages: %w", err)
 	}
 
 	sort.Strings(packages)
@@ -40,7 +40,7 @@ func runDump(cmd *cobra.Command, _ []string) error {
 
 	repos, err := mgr.ListCustomRepos()
 	if err != nil {
-		return fmt.Errorf("failed to list custom repositories: %w", err)
+		return fmt.Errorf("list custom repositories: %w", err)
 	}
 	if len(repos) > 0 {
 		fmt.Fprintln(w)

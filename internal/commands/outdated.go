@@ -37,7 +37,7 @@ func collectOutdated(yumfilePath string) (outdated []OutdatedEntry, numYum int, 
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, 0, fmt.Errorf("Yumfile not found: %s", yumfilePath)
 		}
-		return nil, 0, fmt.Errorf("failed to parse Yumfile: %w", err)
+		return nil, 0, fmt.Errorf("parse Yumfile: %w", err)
 	}
 
 	var packages []string
@@ -52,14 +52,14 @@ func collectOutdated(yumfilePath string) (outdated []OutdatedEntry, numYum int, 
 	for _, pkg := range packages {
 		installed, err := mgr.GetInstalledVersion(pkg)
 		if err != nil {
-			return nil, numYum, fmt.Errorf("failed to get installed version of %s: %w", pkg, err)
+			return nil, numYum, fmt.Errorf("get installed version of %s: %w", pkg, err)
 		}
 		if installed == "" {
 			continue
 		}
 		available, err := mgr.GetAvailableVersion(pkg)
 		if err != nil {
-			return nil, numYum, fmt.Errorf("failed to get available version of %s: %w", pkg, err)
+			return nil, numYum, fmt.Errorf("get available version of %s: %w", pkg, err)
 		}
 		if available == "" || available == installed {
 			continue

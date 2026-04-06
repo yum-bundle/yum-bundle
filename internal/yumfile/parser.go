@@ -51,7 +51,7 @@ type Entry struct {
 func Parse(filePath string) ([]Entry, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open Yumfile: %w", err)
+		return nil, fmt.Errorf("open Yumfile: %w", err)
 	}
 	defer file.Close()
 

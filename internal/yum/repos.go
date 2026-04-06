@@ -178,8 +178,8 @@ var defaultRepoIDs = []string{
 	"epel", "epel-next",
 }
 
-// repoIDLine matches a [section-header] in an INI .repo file.
-var repoIDLine = regexp.MustCompile(`^\[([^\]]+)\]`)
+// iniSectionHeaderRE matches a [section-header] line in an INI .repo file.
+var iniSectionHeaderRE = regexp.MustCompile(`^\[([^\]]+)\]`)
 
 // isDefaultRepoID returns true when the given repo ID is a known distro default.
 func isDefaultRepoID(id string) bool {
@@ -255,7 +255,7 @@ func readRepoFile(path string) ([]RepoEntry, error) {
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
 			continue
 		}
-		if m := repoIDLine.FindStringSubmatch(line); len(m) == 2 {
+		if m := iniSectionHeaderRE.FindStringSubmatch(line); len(m) == 2 {
 			flush()
 			currentID = m[1]
 			continue
