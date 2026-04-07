@@ -126,9 +126,10 @@ func doInstall(entries []yumfile.Entry) error {
 	if err != nil {
 		return fmt.Errorf("load state: %w", err)
 	}
+	stateFilePath := mgr.StatePath()
 	defer func() {
 		if saveErr := mgr.SaveState(state); saveErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: save state: %v\n", saveErr)
+			fmt.Fprintf(os.Stderr, "warning: save state to %s: %v\n", stateFilePath, saveErr)
 		}
 	}()
 

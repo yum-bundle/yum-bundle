@@ -42,6 +42,11 @@ func (m *YumManager) isEPELEnabled() bool {
 	return err == nil
 }
 
+// IsEPELEnabled is the exported form of isEPELEnabled for use outside this package.
+func (m *YumManager) IsEPELEnabled() bool {
+	return m.isEPELEnabled()
+}
+
 // isFedora reads /etc/os-release and returns true when the distro is Fedora.
 func (m *YumManager) isFedora() bool {
 	return m.isDistroID("fedora")
