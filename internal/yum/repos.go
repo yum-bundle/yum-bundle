@@ -255,9 +255,9 @@ func readRepoFile(path string) ([]RepoEntry, error) {
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
 			continue
 		}
-		if m := iniSectionHeaderRE.FindStringSubmatch(line); len(m) == 2 {
+		if matches := iniSectionHeaderRE.FindStringSubmatch(line); len(matches) == 2 {
 			flush()
-			currentID = m[1]
+			currentID = matches[1]
 			continue
 		}
 		if after, ok := strings.CutPrefix(line, "baseurl="); ok {

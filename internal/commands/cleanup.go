@@ -56,8 +56,8 @@ func doCleanup(force, zap, autoremove bool) error {
 		return fmt.Errorf("parse Yumfile: %w", err)
 	}
 
-	aptfilePackages := extractPackageNames(entries)
-	aptfileGroups := extractGroupNames(entries)
+	yumfilePackages := extractPackageNames(entries)
+	yumfileGroups := extractGroupNames(entries)
 
 	state, err := mgr.LoadState()
 	if err != nil {
@@ -66,18 +66,18 @@ func doCleanup(force, zap, autoremove bool) error {
 
 	var packagesToRemove []string
 	if zap {
-		packagesToRemove, err = getPackagesToZap(aptfilePackages)
+		packagesToRemove, err = getPackagesToZap(yumfilePackages)
 		if err != nil {
 			return err
 		}
 	} else {
-		packagesToRemove = state.GetPackagesNotIn(aptfilePackages)
+		packagesToRemove = state.GetPackagesNotIn(yumfilePackages)
 	}
 
 	// Groups are only cleaned up via state (not --zap mode).
 	var groupsToRemove []string
 	if !zap {
-		groupsToRemove = state.GetGroupsNotIn(aptfileGroups)
+		groupsToRemove = state.GetGroupsNotIn(yumfileGroups)
 	}
 
 	if len(packagesToRemove) == 0 && len(groupsToRemove) == 0 {

@@ -63,7 +63,7 @@ func (m *YumManager) SaveState(s *State) error {
 	path := m.StatePath()
 
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("create state directory %s: %w", dir, err)
 	}
 
@@ -146,9 +146,13 @@ func (s *State) HasKey(key string) bool {
 
 // GetPackagesNotIn returns packages in state that are not in the given list.
 func (s *State) GetPackagesNotIn(packages []string) []string {
+	set := make(map[string]bool, len(packages))
+	for _, pkg := range packages {
+		set[pkg] = true
+	}
 	var result []string
 	for _, pkg := range s.Packages {
-		if !slices.Contains(packages, pkg) {
+		if !set[pkg] {
 			result = append(result, pkg)
 		}
 	}
@@ -179,9 +183,13 @@ func (s *State) HasGroup(group string) bool {
 
 // GetGroupsNotIn returns groups in state that are not in the given list.
 func (s *State) GetGroupsNotIn(groups []string) []string {
+	set := make(map[string]bool, len(groups))
+	for _, g := range groups {
+		set[g] = true
+	}
 	var result []string
 	for _, g := range s.Groups {
-		if !slices.Contains(groups, g) {
+		if !set[g] {
 			result = append(result, g)
 		}
 	}

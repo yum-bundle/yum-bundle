@@ -62,7 +62,7 @@ func (m *YumManager) parseOsRelease() map[string]string {
 		if !ok {
 			continue
 		}
-		fields[key] = strings.Trim(val, "\"")
+		fields[key] = strings.Trim(val, "\"'")
 	}
 	return fields
 }
