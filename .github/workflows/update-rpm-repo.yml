@@ -63,12 +63,18 @@ jobs:
               echo "Warning: ${FILENAME} not found, skipping"
           done
 
-          # Regenerate repository metadata
+          # Regenerate repository metadata.
+          # Run from docs/repo so createrepo_c generates relative location
+          # hrefs (packages/<filename>.rpm) rather than absolute paths.
           cd docs/repo
           createrepo_c --update .
 
-          echo "RPM repository updated for version ${VERSION}"
-          ls -lh packages/*.rpm 2>/dev/null || echo "No RPM packages found"
+          echo "RPM repository metadata updated for version ${VERSION}"
+
+          # Remove downloaded RPMs — binaries are not committed to git.
+          # Requests to /repo/packages/*.rpm are served via the Cloudflare
+          # Worker which 302-redirects to the GitHub Release artifact.
+          rm -f packages/*.rpm
 
       - name: Configure git
         run: |
@@ -80,10 +86,11 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          git add docs/repo/
+          # Only stage repodata — RPM binaries must not be committed.
+          git add docs/repo/repodata/
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: update RPM repository to ${TAG}"
+            git commit -m "chore: update RPM repository metadata to ${TAG}"
             git push
           fi
