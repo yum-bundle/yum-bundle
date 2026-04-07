@@ -208,9 +208,13 @@ func doInstall(entries []yumfile.Entry) error {
 		}
 	}
 
-	if installLock && len(packagesToInstall) > 0 {
-		if err := writeLockFileFromPackages(packagesToInstall); err != nil {
-			return fmt.Errorf("write lock file: %w", err)
+	if installLock {
+		if len(packagesToInstall) > 0 {
+			if err := writeLockFileFromPackages(packagesToInstall); err != nil {
+				return fmt.Errorf("write lock file: %w", err)
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, "warning: --lock specified but no packages to lock (Yumfile may only contain groups or RPMs); no lock file written")
 		}
 	}
 
@@ -218,7 +222,10 @@ func doInstall(entries []yumfile.Entry) error {
 }
 
 func writeLockFileFromPackages(packages []string) error {
-	locked, _ := resolveInstalledVersions(packages)
+	locked, skipped := resolveInstalledVersions(packages)
+	for _, name := range skipped {
+		fmt.Fprintf(os.Stderr, "warning: %s not installed or version unavailable; skipping in lock file\n", name)
+	}
 	if len(locked) == 0 {
 		return nil
 	}

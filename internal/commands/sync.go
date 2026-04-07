@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/yum-bundle/yum-bundle/internal/yumfile"
@@ -79,11 +81,20 @@ func runSyncDryRun() error {
 				wouldInstall = append(wouldInstall, entry.Value)
 			}
 		case yumfile.EntryTypeKey:
-			wouldAdd = append(wouldAdd, "key "+entry.Value)
+			keyPath := mgr.KeyPathForURL(entry.Value)
+			if _, err := os.Stat(keyPath); errors.Is(err, os.ErrNotExist) {
+				wouldAdd = append(wouldAdd, "key "+entry.Value)
+			}
 		case yumfile.EntryTypeRepo:
-			wouldAdd = append(wouldAdd, "repo "+entry.Value)
+			repoPath := mgr.RepoFilePathForURL(entry.Value)
+			if _, err := os.Stat(repoPath); errors.Is(err, os.ErrNotExist) {
+				wouldAdd = append(wouldAdd, "repo "+entry.Value)
+			}
 		case yumfile.EntryTypeBaseurl:
-			wouldAdd = append(wouldAdd, "baseurl "+entry.Value)
+			repoPath := mgr.RepoFilePathForURL(entry.Value)
+			if _, err := os.Stat(repoPath); errors.Is(err, os.ErrNotExist) {
+				wouldAdd = append(wouldAdd, "baseurl "+entry.Value)
+			}
 		case yumfile.EntryTypeCopr:
 			wouldAdd = append(wouldAdd, "copr "+entry.Value)
 		case yumfile.EntryTypeEPEL:

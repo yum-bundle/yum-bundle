@@ -51,6 +51,10 @@ func (m *YumManager) LoadState() (*State, error) {
 		return nil, fmt.Errorf("load state from %s: %w", path, err)
 	}
 
+	if state.Version != StateVersion {
+		fmt.Fprintf(os.Stderr, "warning: state file %s has version %d, expected %d; data may be incomplete or misinterpreted\n", path, state.Version, StateVersion)
+	}
+
 	return &state, nil
 }
 
