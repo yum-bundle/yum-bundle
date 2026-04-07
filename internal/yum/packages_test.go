@@ -3,11 +3,24 @@ package yum_test
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/yum-bundle/yum-bundle/internal/testutil"
 	"github.com/yum-bundle/yum-bundle/internal/yum"
 )
+
+// exitError1 returns a real *exec.ExitError with exit code 1,
+// suitable for use in mock executor error injection.
+func exitError1(t *testing.T) error {
+	t.Helper()
+	cmd := exec.Command("sh", "-c", "exit 1")
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("expected sh -c 'exit 1' to fail")
+	}
+	return err
+}
 
 func dnfManager(t *testing.T) (*yum.YumManager, *testutil.MockExecutor) {
 	t.Helper()
@@ -33,13 +46,22 @@ func TestIsPackageInstalled_Installed(t *testing.T) {
 
 func TestIsPackageInstalled_NotInstalled(t *testing.T) {
 	m, mock := dnfManager(t)
-	mock.SetError(errors.New("exit status 1"), "rpm", "-q", "--quiet", "nosuchpkg")
+	mock.SetError(exitError1(t), "rpm", "-q", "--quiet", "nosuchpkg")
 	installed, err := m.IsPackageInstalled("nosuchpkg")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if installed {
 		t.Error("expected installed=false")
+	}
+}
+
+func TestIsPackageInstalled_UnexpectedError(t *testing.T) {
+	m, mock := dnfManager(t)
+	mock.SetError(errors.New("permission denied"), "rpm", "-q", "--quiet", "vim")
+	_, err := m.IsPackageInstalled("vim")
+	if err == nil {
+		t.Fatal("expected error for unexpected failure, got nil")
 	}
 }
 
@@ -120,13 +142,22 @@ func TestGetInstalledVersion(t *testing.T) {
 
 func TestGetInstalledVersion_NotInstalled(t *testing.T) {
 	m, mock := dnfManager(t)
-	mock.SetError(errors.New("exit status 1"), "rpm", "-q", "--queryformat", "%{VERSION}-%{RELEASE}", "nosuchpkg")
+	mock.SetError(exitError1(t), "rpm", "-q", "--queryformat", "%{VERSION}-%{RELEASE}", "nosuchpkg")
 	ver, err := m.GetInstalledVersion("nosuchpkg")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if ver != "" {
 		t.Errorf("expected empty version, got %q", ver)
+	}
+}
+
+func TestGetInstalledVersion_UnexpectedError(t *testing.T) {
+	m, mock := dnfManager(t)
+	mock.SetError(errors.New("rpm database locked"), "rpm", "-q", "--queryformat", "%{VERSION}-%{RELEASE}", "vim")
+	_, err := m.GetInstalledVersion("vim")
+	if err == nil {
+		t.Fatal("expected error for unexpected failure, got nil")
 	}
 }
 

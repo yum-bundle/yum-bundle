@@ -2,7 +2,9 @@ package yum
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strings"
 
@@ -24,14 +26,27 @@ func validatePackageName(spec string) error {
 	return nil
 }
 
+// isExitCode1 returns true when err (potentially wrapped) is an *exec.ExitError
+// with exit code 1.
+func isExitCode1(err error) bool {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		return exitErr.ExitCode() == 1
+	}
+	return false
+}
+
 // IsPackageInstalled checks if a package is installed on the system via rpm -q.
-// Returns (false, nil) when the package is not installed (rpm exits non-zero).
-// Returns (false, err) only on unexpected errors (not exit code 1 from rpm -q).
+// Returns (false, nil) when the package is not installed (rpm exits with code 1).
+// Returns (false, err) for unexpected errors (exit codes other than 1, or execution failure).
 func (m *YumManager) IsPackageInstalled(packageName string) (bool, error) {
 	err := m.runCommand("rpm", "-q", "--quiet", packageName)
 	if err != nil {
-		// rpm -q exits 1 when the package is not installed; treat that as "not installed"
-		return false, nil
+		if isExitCode1(err) {
+			// rpm -q exits 1 when the package is not installed
+			return false, nil
+		}
+		return false, err
 	}
 	return true, nil
 }
@@ -103,14 +118,18 @@ func (m *YumManager) AutoRemove() error {
 }
 
 // GetInstalledVersion returns the installed version string for a package.
-// Returns ("", nil) when the package is not installed.
+// Returns ("", nil) when the package is not installed (rpm exits with code 1).
+// Returns ("", err) for unexpected errors (exit codes other than 1, or execution failure).
 func (m *YumManager) GetInstalledVersion(packageName string) (string, error) {
 	output, err := m.runCommandWithOutput(
 		"rpm", "-q", "--queryformat", "%{VERSION}-%{RELEASE}", packageName,
 	)
 	if err != nil {
-		// rpm -q exits 1 when not installed
-		return "", nil
+		if isExitCode1(err) {
+			// rpm -q exits 1 when not installed
+			return "", nil
+		}
+		return "", err
 	}
 	ver := strings.TrimSpace(string(output))
 	// rpm outputs "package not installed" text when missing; treat as empty
@@ -125,11 +144,15 @@ var availableVersionRE = regexp.MustCompile(`(?m)^Version\s*:\s*(.+)$`)
 var availableReleaseRE = regexp.MustCompile(`(?m)^Release\s*:\s*(.+)$`)
 
 // GetAvailableVersion returns the latest available version for a package from
-// the configured repositories. Returns ("", nil) when the package is not found.
+// the configured repositories. Returns ("", nil) when the package is not found
+// (exit code 1). Returns ("", err) for unexpected errors.
 func (m *YumManager) GetAvailableVersion(packageName string) (string, error) {
 	output, err := m.runCommandWithOutput(m.PkgCmd(), "info", "--available", packageName)
 	if err != nil {
-		return "", nil
+		if isExitCode1(err) {
+			return "", nil
+		}
+		return "", err
 	}
 	text := string(output)
 
@@ -168,7 +191,10 @@ func (m *YumManager) GetAllInstalledPackages() ([]string, error) {
 	var packages []string
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "Last metadata") || strings.HasPrefix(line, "Installed Packages") {
+		// Skip empty lines and non-package lines (e.g. locale-sensitive headers
+		// like "Installed Packages" or "Last metadata expiration check:").
+		// Only keep lines that look like a valid RPM package name.
+		if line == "" || !packageNameRE.MatchString(line) {
 			continue
 		}
 		packages = append(packages, line)
