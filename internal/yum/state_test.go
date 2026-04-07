@@ -68,23 +68,21 @@ func TestLoadState_InvalidJSON(t *testing.T) {
 
 func TestState_AddRemovePackage(t *testing.T) {
 	s := yum.NewState()
-	if s.AddPackage("vim") != true {
-		t.Error("first add should return true")
-	}
-	if s.AddPackage("vim") != false {
-		t.Error("duplicate add should return false")
-	}
+	s.AddPackage("vim")
 	if !s.HasPackage("vim") {
-		t.Error("vim should be present")
+		t.Error("vim should be present after first add")
 	}
-	if s.RemovePackage("vim") != true {
-		t.Error("remove should return true")
+	s.AddPackage("vim") // duplicate add should be a no-op
+	if !s.HasPackage("vim") {
+		t.Error("vim should still be present after duplicate add")
 	}
+	s.RemovePackage("vim")
 	if s.HasPackage("vim") {
-		t.Error("vim should be gone")
+		t.Error("vim should be gone after remove")
 	}
-	if s.RemovePackage("vim") != false {
-		t.Error("second remove should return false")
+	s.RemovePackage("vim") // second remove should be a no-op
+	if s.HasPackage("vim") {
+		t.Error("vim should still be gone after second remove")
 	}
 }
 

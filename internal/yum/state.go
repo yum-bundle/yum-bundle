@@ -75,22 +75,20 @@ func (m *YumManager) SaveState(s *State) error {
 }
 
 // AddPackage adds a package to the state if not already present.
-func (s *State) AddPackage(pkg string) bool {
+func (s *State) AddPackage(pkg string) {
 	if slices.Contains(s.Packages, pkg) {
-		return false
+		return
 	}
 	s.Packages = append(s.Packages, pkg)
-	return true
 }
 
 // RemovePackage removes a package from the state.
-func (s *State) RemovePackage(pkg string) bool {
+func (s *State) RemovePackage(pkg string) {
 	idx := slices.Index(s.Packages, pkg)
 	if idx == -1 {
-		return false
+		return
 	}
 	s.Packages = slices.Delete(s.Packages, idx, idx+1)
-	return true
 }
 
 // HasPackage checks if a package is tracked in the state.
@@ -99,22 +97,20 @@ func (s *State) HasPackage(pkg string) bool {
 }
 
 // AddRepo adds a repo file path to the state if not already present.
-func (s *State) AddRepo(repo string) bool {
+func (s *State) AddRepo(repo string) {
 	if slices.Contains(s.Repos, repo) {
-		return false
+		return
 	}
 	s.Repos = append(s.Repos, repo)
-	return true
 }
 
 // RemoveRepo removes a repo path from the state.
-func (s *State) RemoveRepo(repo string) bool {
+func (s *State) RemoveRepo(repo string) {
 	idx := slices.Index(s.Repos, repo)
 	if idx == -1 {
-		return false
+		return
 	}
 	s.Repos = slices.Delete(s.Repos, idx, idx+1)
-	return true
 }
 
 // HasRepo checks if a repo path is tracked in the state.
@@ -123,22 +119,20 @@ func (s *State) HasRepo(repo string) bool {
 }
 
 // AddKey adds a key path to the state if not already present.
-func (s *State) AddKey(key string) bool {
+func (s *State) AddKey(key string) {
 	if slices.Contains(s.Keys, key) {
-		return false
+		return
 	}
 	s.Keys = append(s.Keys, key)
-	return true
 }
 
 // RemoveKey removes a key path from the state.
-func (s *State) RemoveKey(key string) bool {
+func (s *State) RemoveKey(key string) {
 	idx := slices.Index(s.Keys, key)
 	if idx == -1 {
-		return false
+		return
 	}
 	s.Keys = slices.Delete(s.Keys, idx, idx+1)
-	return true
 }
 
 // HasKey checks if a key path is tracked in the state.
@@ -158,22 +152,20 @@ func (s *State) GetPackagesNotIn(packages []string) []string {
 }
 
 // AddGroup adds a group to the state if not already present.
-func (s *State) AddGroup(group string) bool {
+func (s *State) AddGroup(group string) {
 	if slices.Contains(s.Groups, group) {
-		return false
+		return
 	}
 	s.Groups = append(s.Groups, group)
-	return true
 }
 
 // RemoveGroup removes a group from the state.
-func (s *State) RemoveGroup(group string) bool {
+func (s *State) RemoveGroup(group string) {
 	idx := slices.Index(s.Groups, group)
 	if idx == -1 {
-		return false
+		return
 	}
 	s.Groups = slices.Delete(s.Groups, idx, idx+1)
-	return true
 }
 
 // HasGroup checks if a group is tracked in the state.

@@ -57,6 +57,68 @@ func runInstall(_ *cobra.Command, _ []string) error {
 	return doInstall(entries)
 }
 
+// repoEntry groups a repo/baseurl/copr/epel/module entry with its associated
+// GPG key path (non-empty only for baseurl entries that are immediately preceded
+// by a key directive in the Yumfile).
+//
+// Ordering contract: a key directive must appear directly before the baseurl
+// it protects. This is enforced by convention in the Yumfile format. If a key
+// entry is not immediately followed by a baseurl, a warning is printed during
+// categorization and the key is still imported but not wired to any repo.
+type repoEntry struct {
+	entry      yumfile.Entry
+	gpgKeyPath string // non-empty only for baseurl entries with a preceding key
+}
+
+// categorizedEntries holds entries grouped by directive type, produced by a
+// single categorization pass over the raw entry list.
+type categorizedEntries struct {
+	keys     []yumfile.Entry
+	repos    []repoEntry // repo, baseurl, copr, epel, module (in original order)
+	packages []string    // yum package specs (in original order)
+	groups   []yumfile.Entry
+	rpms     []yumfile.Entry
+	excludes []string
+}
+
+// categorize performs a single pass over entries and returns grouped slices.
+// The key→baseurl pairing is resolved here by index: if entry[i] is a key and
+// entry[i+1] is a baseurl, the key URL is stored alongside the baseurl entry so
+// it can be looked up after the keys are imported. If a key is not immediately
+// followed by a baseurl, a warning is emitted.
+func categorize(entries []yumfile.Entry) *categorizedEntries {
+	c := &categorizedEntries{}
+	for i, entry := range entries {
+		switch entry.Type {
+		case yumfile.EntryTypeKey:
+			c.keys = append(c.keys, entry)
+			// Validate ordering: a key should be immediately followed by a baseurl.
+			nextIsBaseurl := i+1 < len(entries) && entries[i+1].Type == yumfile.EntryTypeBaseurl
+			if !nextIsBaseurl {
+				fmt.Fprintf(os.Stderr, "warning: key directive on line %d is not immediately followed by a baseurl; it will be imported but not associated with any repo\n", entry.LineNum)
+			}
+		case yumfile.EntryTypeBaseurl:
+			// Pair with the immediately preceding key entry, if any.
+			var keyURL string
+			if i > 0 && entries[i-1].Type == yumfile.EntryTypeKey {
+				keyURL = entries[i-1].Value
+			}
+			c.repos = append(c.repos, repoEntry{entry: entry, gpgKeyPath: keyURL})
+		case yumfile.EntryTypeRepo, yumfile.EntryTypeCopr, yumfile.EntryTypeEPEL, yumfile.EntryTypeModule:
+			c.repos = append(c.repos, repoEntry{entry: entry})
+		case yumfile.EntryTypeYum:
+			c.packages = append(c.packages, entry.Value)
+		case yumfile.EntryTypeGroup:
+			c.groups = append(c.groups, entry)
+		case yumfile.EntryTypeRPM:
+			c.rpms = append(c.rpms, entry)
+		case yumfile.EntryTypeExclude:
+			c.excludes = append(c.excludes, entry.Value)
+		}
+	}
+	return c
+}
+
 // doInstall performs the non-dry-run install workflow for the given entries.
 // Callers are responsible for root checks and dry-run branching.
 func doInstall(entries []yumfile.Entry) error {
@@ -70,39 +132,44 @@ func doInstall(entries []yumfile.Entry) error {
 		}
 	}()
 
-	var pendingKeyPath string
+	// Single categorization pass — avoids repeated scans of entries.
+	cat := categorize(entries)
+
+	// 1. Import GPG keys; build a map from key URL → installed key path so that
+	// baseurl entries can resolve their associated key in step 2.
+	importedKeyPaths := make(map[string]string) // key URL -> key path on disk
+	for _, entry := range cat.keys {
+		keyPath, err := mgr.ImportGPGKey(entry.Value, entry.ChecksumAlgo, entry.Checksum)
+		if err != nil {
+			return fmt.Errorf("import GPG key: %w", err)
+		}
+		state.AddKey(keyPath)
+		importedKeyPaths[entry.Value] = keyPath
+	}
+
+	// 2. Add repositories (repo files, baseurls, COPRs, EPEL, modules).
 	var reposAdded bool
-
-	for _, entry := range entries {
+	for _, re := range cat.repos {
+		entry := re.entry
 		switch entry.Type {
-		case yumfile.EntryTypeKey:
-			keyPath, err := mgr.ImportGPGKey(entry.Value, entry.ChecksumAlgo, entry.Checksum)
-			if err != nil {
-				return fmt.Errorf("import GPG key: %w", err)
-			}
-			pendingKeyPath = keyPath
-			state.AddKey(keyPath)
-
 		case yumfile.EntryTypeRepo:
 			repoPath, err := mgr.AddRepoFile(entry.Value, entry.ChecksumAlgo, entry.Checksum)
 			if err != nil {
 				return fmt.Errorf("add repo: %w", err)
 			}
 			state.AddRepo(repoPath)
-			pendingKeyPath = ""
 			reposAdded = true
 
 		case yumfile.EntryTypeBaseurl:
 			opts := &yum.RepoFileOptions{}
-			if pendingKeyPath != "" {
-				opts.GPGKeyPath = pendingKeyPath
+			if re.gpgKeyPath != "" {
+				opts.GPGKeyPath = importedKeyPaths[re.gpgKeyPath]
 			}
 			repoPath, err := mgr.AddBaseurlRepo(entry.Value, opts)
 			if err != nil {
 				return fmt.Errorf("add baseurl repo: %w", err)
 			}
 			state.AddRepo(repoPath)
-			pendingKeyPath = ""
 			reposAdded = true
 
 		case yumfile.EntryTypeCopr:
@@ -134,27 +201,14 @@ func doInstall(entries []yumfile.Entry) error {
 		fmt.Println("Warning: Repositories were added; run without --no-update to fetch package metadata.")
 	}
 
-	// Collect exclude directives to pass to every install command
-	var excludes []string
-	for _, entry := range entries {
-		if entry.Type == yumfile.EntryTypeExclude {
-			excludes = append(excludes, entry.Value)
-		}
-	}
-
-	packagesToInstall := []string{}
+	// 3. Install packages.
+	packagesToInstall := cat.packages
 	if installLocked {
 		specs, err := ReadLockFile()
 		if err != nil {
 			return err
 		}
 		packagesToInstall = specs
-	} else {
-		for _, entry := range entries {
-			if entry.Type == yumfile.EntryTypeYum {
-				packagesToInstall = append(packagesToInstall, entry.Value)
-			}
-		}
 	}
 
 	if len(packagesToInstall) > 0 {
@@ -170,7 +224,7 @@ func doInstall(entries []yumfile.Entry) error {
 				state.AddPackage(pkgName)
 				continue
 			}
-			if err := mgr.InstallPackage(pkg, excludes); err != nil {
+			if err := mgr.InstallPackage(pkg, cat.excludes); err != nil {
 				return fmt.Errorf("install package %s: %w", pkg, err)
 			}
 			state.AddPackage(pkgName)
@@ -180,31 +234,27 @@ func doInstall(entries []yumfile.Entry) error {
 		fmt.Println("No packages to install")
 	}
 
-	// Install package groups
-	for _, entry := range entries {
-		if entry.Type == yumfile.EntryTypeGroup {
-			installed, err := mgr.IsGroupInstalled(entry.Value)
-			if err != nil {
-				fmt.Printf("Warning: could not check if group %s is installed: %v\n", entry.Value, err)
-			}
-			if installed {
-				fmt.Printf("✓ Group %s is already installed\n", entry.Value)
-				state.AddGroup(entry.Value)
-				continue
-			}
-			if err := mgr.InstallGroup(entry.Value, excludes); err != nil {
-				return fmt.Errorf("install group %s: %w", entry.Value, err)
-			}
-			state.AddGroup(entry.Value)
+	// 4. Install package groups.
+	for _, entry := range cat.groups {
+		installed, err := mgr.IsGroupInstalled(entry.Value)
+		if err != nil {
+			fmt.Printf("Warning: could not check if group %s is installed: %v\n", entry.Value, err)
 		}
+		if installed {
+			fmt.Printf("✓ Group %s is already installed\n", entry.Value)
+			state.AddGroup(entry.Value)
+			continue
+		}
+		if err := mgr.InstallGroup(entry.Value, cat.excludes); err != nil {
+			return fmt.Errorf("install group %s: %w", entry.Value, err)
+		}
+		state.AddGroup(entry.Value)
 	}
 
-	// Install RPMs from URLs
-	for _, entry := range entries {
-		if entry.Type == yumfile.EntryTypeRPM {
-			if err := mgr.InstallRPMFromURL(entry.Value, entry.ChecksumAlgo, entry.Checksum); err != nil {
-				return fmt.Errorf("install RPM from URL %s: %w", entry.Value, err)
-			}
+	// 5. Install RPMs from URLs.
+	for _, entry := range cat.rpms {
+		if err := mgr.InstallRPMFromURL(entry.Value, entry.ChecksumAlgo, entry.Checksum); err != nil {
+			return fmt.Errorf("install RPM from URL %s: %w", entry.Value, err)
 		}
 	}
 
