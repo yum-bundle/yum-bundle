@@ -64,6 +64,41 @@ func doCheck(yumfilePath string) (ok bool, missing []string, entries []yumfile.E
 			if err != nil || !installed {
 				missing = append(missing, "group "+entry.Value)
 			}
+
+		case yumfile.EntryTypeRepo:
+			repoPath := mgr.RepoFilePathForURL(entry.Value)
+			if _, statErr := os.Stat(repoPath); statErr != nil {
+				if errors.Is(statErr, os.ErrNotExist) {
+					missing = append(missing, "repo "+entry.Value)
+				} else {
+					return false, nil, nil, fmt.Errorf("checking repo %s: %w", entry.Value, statErr)
+				}
+			}
+
+		case yumfile.EntryTypeBaseurl:
+			repoPath := mgr.RepoFilePathForURL(entry.Value)
+			if _, statErr := os.Stat(repoPath); statErr != nil {
+				if errors.Is(statErr, os.ErrNotExist) {
+					missing = append(missing, "baseurl "+entry.Value)
+				} else {
+					return false, nil, nil, fmt.Errorf("checking baseurl %s: %w", entry.Value, statErr)
+				}
+			}
+
+		case yumfile.EntryTypeCopr:
+			coprPath := mgr.CoprRepoPathFor(entry.Value)
+			if _, statErr := os.Stat(coprPath); statErr != nil {
+				if errors.Is(statErr, os.ErrNotExist) {
+					missing = append(missing, "copr "+entry.Value)
+				} else {
+					return false, nil, nil, fmt.Errorf("checking copr %s: %w", entry.Value, statErr)
+				}
+			}
+
+		case yumfile.EntryTypeEPEL:
+			if !mgr.IsEPELEnabled() {
+				missing = append(missing, "epel")
+			}
 		}
 	}
 

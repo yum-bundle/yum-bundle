@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -179,7 +180,12 @@ func (m *YumManager) GetAllInstalledPackages() ([]string, error) {
 
 	if m.IsDNF() {
 		output, err = m.runCommandWithOutput("dnf", "history", "userinstalled")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "warning: dnf history userinstalled not available, falling back to rpm -qa (output includes all packages, not just user-installed)")
+			output, err = m.runCommandWithOutput("rpm", "-qa", "--queryformat", "%{NAME}\\n")
+		}
 	} else {
+		fmt.Fprintln(os.Stderr, "warning: dnf history userinstalled not available, falling back to rpm -qa (output includes all packages, not just user-installed)")
 		output, err = m.runCommandWithOutput("rpm", "-qa", "--queryformat", "%{NAME}\\n")
 	}
 	if err != nil {

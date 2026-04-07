@@ -55,12 +55,12 @@ func runSync(_ *cobra.Command, _ []string) error {
 }
 
 func runSyncDryRun() error {
+	fmt.Printf("Reading Yumfile from: %s (dry-run)\n", yumfilePath)
+
 	entries, err := yumfile.Parse(yumfilePath)
 	if err != nil {
 		return fmt.Errorf("parse Yumfile: %w", err)
 	}
-
-	fmt.Printf("Reading Yumfile from: %s (dry-run)\n", yumfilePath)
 
 	state, err := mgr.LoadState()
 	if err != nil {
